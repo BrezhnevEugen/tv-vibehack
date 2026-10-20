@@ -13,11 +13,12 @@ import java.util.Random;
 /**
  * Screensaver: the launcher's thin clock and date on black, over a slow ambient glow.
  * Every minute the clock drifts to a new spot and the glow shifts colour, so nothing burns in.
- * No network, no images: cheap enough for a 1 GB TV.
+ * Below the date: current weather (config.xml, weather_*), refreshed every 30 minutes while it runs.
  */
 public class ClockDream extends DreamService {
 
     private static final long MOVE_MS = 60_000L;
+    private static final long WEATHER_MS = 30 * 60_000L;
     /** Deep, low-brightness glow colours; the glow is drawn at partial alpha on black. */
     private static final int[] PALETTE = {0xFF2B5CFF, 0xFF00A39A, 0xFF8A3FFC, 0xFFE0661B, 0xFFD6336C};
 
@@ -27,6 +28,15 @@ public class ClockDream extends DreamService {
     private GradientDrawable glow;
     private int colorIndex;
     private int glowColor;
+    private android.widget.TextView weather;
+
+    private final Runnable weatherTick = new Runnable() {
+        @Override
+        public void run() {
+            Weather.fetch(ClockDream.this, ClockDream.this::showWeather);
+            handler.postDelayed(this, WEATHER_MS);
+        }
+    };
 
     private final Runnable tick = new Runnable() {
         @Override
@@ -46,6 +56,8 @@ public class ClockDream extends DreamService {
         setContentView(R.layout.dream_clock);
 
         content = findViewById(R.id.dreamContent);
+        weather = findViewById(R.id.dreamWeather);
+        showWeather(Weather.last);
         View ambient = findViewById(R.id.dreamAmbient);
         glow = new GradientDrawable();
         glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
@@ -65,17 +77,34 @@ public class ClockDream extends DreamService {
             content.animate().alpha(1f).setDuration(1200).start();
         });
         handler.postDelayed(tick, MOVE_MS);
+        handler.post(weatherTick);
+    }
+
+    private void showWeather(String text) {
+        if (weather == null || text == null) return;
+        weather.setText(text);
+        weather.setVisibility(View.VISIBLE);
+        // The block just got wider: move it back on screen if it now sticks out.
+        content.post(() -> {
+            View parent = (View) content.getParent();
+            if (content.getX() + content.getWidth() > parent.getWidth()
+                    || content.getY() + content.getHeight() > parent.getHeight()) {
+                placeClock();
+            }
+        });
     }
 
     @Override
     public void onDreamingStopped() {
         handler.removeCallbacks(tick);
+        handler.removeCallbacks(weatherTick);
         super.onDreamingStopped();
     }
 
     @Override
     public void onDetachedFromWindow() {
         handler.removeCallbacks(tick);
+        handler.removeCallbacks(weatherTick);
         super.onDetachedFromWindow();
     }
 

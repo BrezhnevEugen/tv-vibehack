@@ -30,6 +30,11 @@
         <item>4065=com.google.android.youtube.tv</item>
     </string-array>
 
+    <!-- Screensaver weather (Open-Meteo, no key). -->
+    <string name="weather_city" translatable="false">Краснодар</string>
+    <string name="weather_lat" translatable="false">45.0355</string>
+    <string name="weather_lon" translatable="false">38.9753</string>
+
     <!-- Tiles per row in the grid; the dock always has this many slots. -->
     <integer name="columns">4</integer>
 </resources>
