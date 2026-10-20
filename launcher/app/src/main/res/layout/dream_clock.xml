@@ -70,7 +70,8 @@
             android:layout_marginTop="14dp"
             android:visibility="gone"
             android:textColor="#B3FFFFFF"
-            android:textSize="26sp"
+            android:textSize="24sp"
+            android:lineSpacingExtra="6dp"
             android:fontFamily="@font/outfit"
             android:fontVariationSettings="'wght' 300"
             android:letterSpacing="0.02" />

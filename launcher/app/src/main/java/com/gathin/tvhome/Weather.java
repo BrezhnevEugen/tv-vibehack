@@ -25,7 +25,8 @@ final class Weather {
     static void fetch(Context ctx, Consumer<String> onResult) {
         final String city = ctx.getString(R.string.weather_city);
         final String url = String.format(Locale.US,
-                "https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&current=temperature_2m,weather_code&timezone=auto",
+                "https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code"
+                        + "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max&forecast_days=3&wind_speed_unit=ms&timezone=auto",
                 ctx.getString(R.string.weather_lat), ctx.getString(R.string.weather_lon));
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
@@ -41,10 +42,28 @@ final class Weather {
                     byte[] buf = new byte[4096];
                     int n;
                     while ((n = in.read(buf)) > 0 && out.size() < 65536) out.write(buf, 0, n);
-                    JSONObject cur = new JSONObject(out.toString("UTF-8")).getJSONObject("current");
-                    long t = Math.round(cur.getDouble("temperature_2m"));
-                    String temp = (t > 0 ? "+" : "") + t + "°";
-                    text = city + "  ·  " + temp + "  ·  " + describe(cur.getInt("weather_code"));
+                    JSONObject root = new JSONObject(out.toString("UTF-8"));
+                    JSONObject cur = root.getJSONObject("current");
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(city).append("  ·  ").append(deg(cur.getDouble("temperature_2m")))
+                            .append("  ·  ").append(describe(cur.getInt("weather_code")));
+                    sb.append("\nощущается ").append(deg(cur.getDouble("apparent_temperature")))
+                            .append("  ·  ветер ").append(Math.round(cur.getDouble("wind_speed_10m"))).append(" м/с")
+                            .append("  ·  влажность ").append(cur.getInt("relative_humidity_2m")).append("%");
+                    JSONObject d = root.optJSONObject("daily");
+                    if (d != null) {
+                        String[] days = {"сегодня", "завтра", "послезавтра"};
+                        int count = Math.min(days.length, d.getJSONArray("weather_code").length());
+                        for (int k = 0; k < count; k++) {
+                            sb.append("\n").append(days[k]).append("  ")
+                                    .append(deg(d.getJSONArray("temperature_2m_min").getDouble(k))).append("…")
+                                    .append(deg(d.getJSONArray("temperature_2m_max").getDouble(k))).append("  ")
+                                    .append(describe(d.getJSONArray("weather_code").getInt(k)));
+                            int p = d.getJSONArray("precipitation_probability_max").optInt(k, -1);
+                            if (p >= 30) sb.append(", осадки ").append(p).append("%");
+                        }
+                    }
+                    text = sb.toString();
                 }
             } catch (Exception ignored) {
             } finally {
@@ -54,6 +73,11 @@ final class Weather {
             final String result = text != null ? text : last;
             main.post(() -> onResult.accept(result));
         }, "weather").start();
+    }
+
+    private static String deg(double v) {
+        long t = Math.round(v);
+        return (t > 0 ? "+" : "") + t + "°";
     }
 
     /** WMO weather interpretation codes, in Russian. */
