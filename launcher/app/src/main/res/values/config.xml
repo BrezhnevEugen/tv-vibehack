@@ -64,6 +64,37 @@
         <item>Kuban24|Кубань 24</item>
         <item>TelekanalKrasnodar|Краснодар</item>
     </string-array>
+    <!-- "Каналы по странам": iptv-org country code|name. -->
+    <string-array name="iptv_countries">
+        <item>ru|🇷🇺 Россия</item>
+        <item>by|🇧🇾 Беларусь</item>
+        <item>kz|🇰🇿 Казахстан</item>
+        <item>am|🇦🇲 Армения</item>
+        <item>ge|🇬🇪 Грузия</item>
+        <item>az|🇦🇿 Азербайджан</item>
+        <item>uz|🇺🇿 Узбекистан</item>
+        <item>tr|🇹🇷 Турция</item>
+        <item>ae|🇦🇪 ОАЭ</item>
+        <item>il|🇮🇱 Израиль</item>
+        <item>us|🇺🇸 США</item>
+        <item>gb|🇬🇧 Великобритания</item>
+        <item>de|🇩🇪 Германия</item>
+        <item>fr|🇫🇷 Франция</item>
+        <item>it|🇮🇹 Италия</item>
+        <item>es|🇪🇸 Испания</item>
+        <item>gr|🇬🇷 Греция</item>
+        <item>cy|🇨🇾 Кипр</item>
+        <item>rs|🇷🇸 Сербия</item>
+        <item>pl|🇵🇱 Польша</item>
+        <item>nl|🇳🇱 Нидерланды</item>
+        <item>in|🇮🇳 Индия</item>
+        <item>cn|🇨🇳 Китай</item>
+        <item>jp|🇯🇵 Япония</item>
+        <item>kr|🇰🇷 Корея</item>
+        <item>th|🇹🇭 Таиланд</item>
+        <item>br|🇧🇷 Бразилия</item>
+        <item>ca|🇨🇦 Канада</item>
+    </string-array>
     <string-array name="iptv_world">
         <item>EuronewsRussian|Euronews (рус)</item>
         <item>CGTNRussian|CGTN (рус)</item>

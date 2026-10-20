@@ -37,7 +37,19 @@ import java.util.Map;
 public class ChannelsActivity extends Activity {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final List<Object> rows = new ArrayList<>();   // String = group header, Channel = channel
+    private final List<Object> rows = new ArrayList<>();   // String = header, Channel = channel, Action = menu item
+    private List<Iptv.Channel> favourites;
+
+    /** A menu row: "Каналы по странам ›", a country, "‹ Назад". */
+    private static final class Action {
+        final String label;
+        final Runnable run;
+
+        Action(String label, Runnable run) {
+            this.label = label;
+            this.run = run;
+        }
+    }
     private final List<Iptv.Channel> channels = new ArrayList<>();
     private ExoPlayer player;
     private ListView list;
@@ -65,6 +77,10 @@ public class ChannelsActivity extends Activity {
             @Override
             public void onPlayerError(PlaybackException error) {
                 status.setText("Канал сейчас недоступен");
+                if (current >= 0) {
+                    channels.get(current).state = -1;
+                    adapter.notifyDataSetChanged();
+                }
             }
 
             @Override
@@ -76,7 +92,9 @@ public class ChannelsActivity extends Activity {
         list.setAdapter(adapter);
         list.setOnItemClickListener((p, v, pos, id) -> {
             Object row = rows.get(pos);
-            if (row instanceof Iptv.Channel && ((Iptv.Channel) row).available()) {
+            if (row instanceof Action) {
+                ((Action) row).run.run();
+            } else if (row instanceof Iptv.Channel && ((Iptv.Channel) row).available()) {
                 play(channels.indexOf(row));
                 hideList();
             }
@@ -90,6 +108,7 @@ public class ChannelsActivity extends Activity {
     }
 
     private void setChannels(List<Iptv.Channel> cs) {
+        favourites = cs;
         channels.clear();
         channels.addAll(cs);
         rows.clear();
@@ -101,6 +120,8 @@ public class ChannelsActivity extends Activity {
             }
             rows.add(c);
         }
+        rows.add("Ещё");
+        rows.add(new Action("Каналы по странам  ›", this::showCountries));
         adapter.notifyDataSetChanged();
         String last = prefs.getString("last", null);
         int start = -1;
@@ -119,6 +140,90 @@ public class ChannelsActivity extends Activity {
 
     private void play(int index) {
         play(index, 1);
+    }
+
+    /** Back to the curated list, keeping what plays. */
+    private void showFavourites() {
+        countryName = null;
+        Iptv.Channel playing = current >= 0 ? channels.get(current) : null;
+        channels.clear();
+        channels.addAll(favourites);
+        rows.clear();
+        String group = null;
+        for (Iptv.Channel c : favourites) {
+            if (!c.group.equals(group)) {
+                group = c.group;
+                rows.add(group);
+            }
+            rows.add(c);
+        }
+        rows.add("Ещё");
+        rows.add(new Action("Каналы по странам  ›", this::showCountries));
+        current = playing != null ? channels.indexOf(playing) : -1;
+        adapter.notifyDataSetChanged();
+        list.setSelection(1);
+    }
+
+    private void showCountries() {
+        countryName = null;
+        rows.clear();
+        rows.add(new Action("‹  Избранные каналы", this::showFavourites));
+        rows.add("Страны");
+        for (String line : getResources().getStringArray(R.array.iptv_countries)) {
+            String[] kv = line.split("\\|", 2);
+            if (kv.length == 2) rows.add(new Action(kv[1], () -> showCountry(kv[0], kv[1])));
+        }
+        adapter.notifyDataSetChanged();
+        list.setSelection(0);
+        list.requestFocus();
+    }
+
+    private void showCountry(String code, String name) {
+        rows.clear();
+        rows.add(new Action("‹  Страны", this::showCountries));
+        rows.add(name + " · загрузка…");
+        adapter.notifyDataSetChanged();
+        Iptv.loadCountry(code, name, cs -> {
+            if (isFinishing()) return;
+            rows.clear();
+            rows.add(new Action("‹  Страны", this::showCountries));
+            if (cs == null || cs.isEmpty()) {
+                rows.add(name + " · нет каналов");
+                adapter.notifyDataSetChanged();
+                return;
+            }
+            Iptv.Channel playing = current >= 0 && current < channels.size() ? channels.get(current) : null;
+            channels.clear();
+            channels.addAll(cs);
+            current = -1;
+            countryName = name;
+            refreshCountry();
+            list.setSelection(2);
+            if (playing != null) badge.setText(playing.name);
+        }, () -> {
+            if (countryName != null && countryName.equals(name)) refreshCountry();
+        });
+    }
+
+    private String countryName;
+
+    /** Country list without the channels that turned out dead, so only watchable ones remain. */
+    private void refreshCountry() {
+        Object sel = list.getSelectedItem();
+        rows.clear();
+        rows.add(new Action("‹  Страны", this::showCountries));
+        int checked = 0, live = 0;
+        for (Iptv.Channel c : channels) {
+            if (c.state != 0) checked++;
+            if (c.state == 1) live++;
+        }
+        rows.add(countryName + (checked < channels.size()
+                ? " · проверено " + checked + " из " + channels.size()
+                : " · работают " + live));
+        for (Iptv.Channel c : channels) if (c.state != -1) rows.add(c);
+        adapter.notifyDataSetChanged();
+        int at = sel != null ? rows.indexOf(sel) : -1;
+        if (at >= 0) list.setSelection(at);
     }
 
     /** Plays the channel at index, skipping unavailable ones in the given direction. */
@@ -236,7 +341,7 @@ public class ChannelsActivity extends Activity {
 
         @Override
         public boolean isEnabled(int i) {
-            return rows.get(i) instanceof Iptv.Channel;
+            return !(rows.get(i) instanceof String);
         }
 
         @Override
@@ -250,7 +355,13 @@ public class ChannelsActivity extends Activity {
             Object row = rows.get(i);
             float d = getResources().getDisplayMetrics().density;
             t.setTypeface(getResources().getFont(R.font.outfit));
-            if (row instanceof String) {
+            if (row instanceof Action) {
+                t.setText(((Action) row).label);
+                t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+                t.setTextColor(0xFF8CD3FF);
+                t.setFontVariationSettings("'wght' 500");
+                t.setPadding((int) (24 * d), (int) (9 * d), (int) (12 * d), (int) (9 * d));
+            } else if (row instanceof String) {
                 t.setText(((String) row).toUpperCase());
                 t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
                 t.setTextColor(0x99FFFFFF);
@@ -258,7 +369,7 @@ public class ChannelsActivity extends Activity {
                 t.setPadding((int) (24 * d), (int) (14 * d), 0, (int) (4 * d));
             } else {
                 Iptv.Channel c = (Iptv.Channel) row;
-                t.setText(c.available() ? c.name : c.name + "  · нет сигнала");
+                t.setText(c.available() ? (c.state == 0 ? c.name + "  ·" : c.name) : c.name + "  · нет сигнала");
                 t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
                 t.setTextColor(!c.available() ? 0x59FFFFFF : channels.indexOf(c) == current ? 0xFF8CD3FF : 0xFFFFFFFF);
                 t.setFontVariationSettings("'wght' 400");

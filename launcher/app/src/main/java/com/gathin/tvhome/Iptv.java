@@ -19,8 +19,10 @@ final class Iptv {
 
     static final class Channel {
         final String name, group;
-        /** Working stream (first candidate that answered), or null when none did. */
+        /** Stream to play: the first candidate that answered (or, before probing, the best guess). */
         String url, userAgent, referer;
+        /** 0 not checked yet, 1 answers, -1 no candidate answered. */
+        volatile int state;
 
         Channel(String name, String group) {
             this.name = name;
@@ -28,13 +30,13 @@ final class Iptv {
         }
 
         boolean available() {
-            return url != null;
+            return url != null && state != -1;
         }
     }
 
     /** One playlist entry before filtering. */
     private static final class Entry {
-        String id, variant, url, ua, ref;
+        String id, variant, url, ua, ref, name;
         boolean geo, hd;
     }
 
@@ -98,19 +100,70 @@ final class Iptv {
             Channel ch = new Channel(kv[1], group);
             out.add(ch);
             probes.add(() -> {
-                for (Entry e : cands) {
-                    if (reachable(e)) {
-                        ch.url = e.url;
-                        ch.userAgent = e.ua;
-                        ch.referer = e.ref;
-                        return;
-                    }
-                }
+                probe(ch, cands);
             });
         }
     }
 
     private static final List<Runnable> probes = new ArrayList<>();
+
+    private static void probe(Channel ch, List<Entry> cands) {
+        for (Entry e : cands) {
+            if (reachable(e)) {
+                ch.url = e.url;
+                ch.userAgent = e.ua;
+                ch.referer = e.ref;
+                ch.state = 1;
+                return;
+            }
+        }
+        ch.state = -1;
+    }
+
+    private static java.util.concurrent.ExecutorService countryProbe;
+
+    /**
+     * All channels of one country (iptv-org countries/<code>.m3u), sorted by name. The list comes back at once
+     * with best-guess streams; each channel is then checked in the background and onUpdate fires as results land.
+     */
+    static void loadCountry(String code, String country, Consumer<List<Channel>> onList, Runnable onUpdate) {
+        final Handler main = new Handler(Looper.getMainLooper());
+        if (countryProbe != null) countryProbe.shutdownNow();
+        final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(8);
+        countryProbe = pool;
+        new Thread(() -> {
+            List<Entry> all;
+            try {
+                all = parse("https://iptv-org.github.io/iptv/countries/" + code + ".m3u");
+            } catch (Exception e) {
+                main.post(() -> onList.accept(null));
+                return;
+            }
+            Map<String, List<Entry>> byId = new java.util.LinkedHashMap<>();
+            for (Entry e : all) {
+                String key = e.id.isEmpty() ? e.name : e.id;
+                byId.computeIfAbsent(key, k -> new ArrayList<>()).add(e);
+            }
+            List<Channel> out = new ArrayList<>();
+            for (List<Entry> cands : byId.values()) {
+                cands.sort((a, b) -> Integer.compare(score(b), score(a)));
+                Entry best = cands.get(0);
+                Channel ch = new Channel(best.name, country);
+                ch.url = best.url;
+                ch.userAgent = best.ua;
+                ch.referer = best.ref;
+                out.add(ch);
+                pool.submit(() -> {
+                    probe(ch, cands);
+                    main.post(onUpdate);
+                });
+                if (out.size() >= 400) break;
+            }
+            out.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
+            pool.shutdown();
+            main.post(() -> onList.accept(out));
+        }, "iptv-country").start();
+    }
 
     private static int score(Entry e) {
         return (e.geo ? 0 : 2) + (e.hd ? 1 : 0);
@@ -160,13 +213,15 @@ final class Iptv {
                     cur.ref = attrs.get("http-referrer");
                     cur.geo = line.contains("[Geo-blocked]");
                     cur.hd = cur.variant.toUpperCase().contains("HD") || line.contains("(1080p)");
+                    String title = line.substring(line.lastIndexOf(',') + 1);
+                    cur.name = title.replaceAll("\\s*\\([0-9]+[pi]\\)", "").replaceAll("\\s*\\[[^]]*]", "").trim();
                 } else if (line.startsWith("#EXTVLCOPT:") && cur != null) {
                     String opt = line.substring(11);
                     if (opt.startsWith("http-user-agent=")) cur.ua = opt.substring(16);
                     else if (opt.startsWith("http-referrer=")) cur.ref = opt.substring(14);
                 } else if (!line.isEmpty() && !line.startsWith("#") && cur != null) {
                     cur.url = line;
-                    if (!cur.id.isEmpty()) out.add(cur);
+                    if (!cur.id.isEmpty() || !cur.name.isEmpty()) out.add(cur);
                     cur = null;
                 }
             }
