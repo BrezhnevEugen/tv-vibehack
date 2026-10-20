@@ -219,11 +219,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (System.currentTimeMillis() - lastWeatherFetch > 30 * 60_000L) {
             lastWeatherFetch = System.currentTimeMillis();
             Weather.fetch(this, d -> {
-                if (d != null && !isFinishing()) adapter.reload();
+                if (d != null && !isFinishing()) reloadKeepingFocus();
             });
         }
         Picks.refresh(this, () -> {
-            if (!isFinishing()) adapter.reload();
+            if (!isFinishing()) reloadKeepingFocus();
         });
         updateGreeting();
         updateWifiLabel();
@@ -516,8 +516,30 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     // ---- navigation ------------------------------------------------------------------------------
 
+    /**
+     * Weather and "В тренде" arrive a few seconds after Home is shown, often while the remote is in use. A plain
+     * reload() rebinds every tile and focus could land on another row; keep it on the tile it was on.
+     */
+    private void reloadKeepingFocus() {
+        final String key = lastFocusedKey;
+        final boolean hadFocus = grid.hasFocus();
+        adapter.reload();
+        if (!hadFocus) return;
+        grid.post(() -> {
+            int pos = adapter.positionOf(key);
+            if (pos >= 0) focusTile(pos);
+        });
+    }
+
+    /** IR remotes sometimes send one press twice in a row; a second move within this window is ignored. */
+    private static final long VERTICAL_DEBOUNCE_MS = 140;
+    private long lastVerticalMove;
+
     @Override
     public boolean onTileVerticalKey(int position, int keyCode) {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastVerticalMove < VERTICAL_DEBOUNCE_MS) return true;
+        lastVerticalMove = now;
         int count = adapter.getItemCount();
         int target;
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
