@@ -105,7 +105,8 @@ final class Picks {
                     artFor = p.id;
                     changed = true;
                 }
-            } catch (Exception ignored) {   // offline, bad key or TMDB unreachable: keep what we have
+            } catch (Exception e) {   // offline, bad key or TMDB unreachable: keep what we have
+                android.util.Log.w("TvHomePicks", "refresh failed: " + e);
             } finally {
                 busy = false;
             }
