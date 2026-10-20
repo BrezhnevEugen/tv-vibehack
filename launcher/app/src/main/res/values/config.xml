@@ -35,6 +35,8 @@
     <string name="weather_city" translatable="false">Краснодар</string>
     <string name="weather_lat" translatable="false">45.0355</string>
     <string name="weather_lon" translatable="false">38.9753</string>
+    <!-- Precipitation map, the third OK on the Weather screen. -->
+    <string name="weather_map_url" translatable="false">https://yandex.ru/pogoda/ru/krasnodar/maps/nowcast?ll=38.9776_45.0599&amp;z=9</string>
 
     <!-- Tiles per row in the grid; the dock always has this many slots. -->
     <integer name="columns">4</integer>
