@@ -25,4 +25,21 @@
         <item name="android:focusable">true</item>
         <item name="android:clickable">true</item>
     </style>
+
+    <style name="WeatherText">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:fontFamily">@font/outfit</item>
+        <item name="android:fontVariationSettings">\'wght\' 400</item>
+        <item name="android:shadowColor">#33000000</item>
+        <item name="android:shadowRadius">6</item>
+    </style>
+
+    <style name="WeatherCaption" parent="WeatherText">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">#99FFFFFF</item>
+        <item name="android:letterSpacing">0.08</item>
+        <item name="android:fontVariationSettings">\'wght\' 600</item>
+    </style>
 </resources>
