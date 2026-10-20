@@ -171,6 +171,26 @@ Without Homebrew, the script also finds a JDK 17 known to `/usr/libexec/java_hom
 `~/Library/Android/sdk`, Android Studio's default. A release build (`./gradlew assembleRelease`)
 is smaller and faster on 1 GB sets; sign it yourself before installing.
 
+**Settings on the TV.** The top bar's Settings button opens the launcher's own settings (also in
+the TV's app list as "Home: настройки"); its last row opens the TV's settings. Anything changed
+there wins over `config.xml`:
+
+- **Главный экран**: switch back to the TV's own home screen and screensaver ("Original"), or to
+  this one again, without a computer. The launcher talks to the TV's own ADB on `127.0.0.1:5555`
+  (the code is from [Free My TV](https://github.com/simbasjungles/free-my-tv), MIT); the first
+  time, accept "Allow USB debugging?" on the TV with "Always allow".
+- **Отключить лишние приложения / Вернуть**: turns `debloat_apps` from `config.xml` off or back
+  on. System parts and any app that saved a Wi-Fi network are skipped (Android erases the
+  networks of a disabled app).
+- **Тема**: light from sunrise to sunset in the weather city (Open-Meteo), dark after; or pinned.
+- **Город**, the four dock slots, and what each remote app button opens.
+- **В тренде**: a tile with the week's trending films and series from TMDB, one per hour over its
+  backdrop photo; it fills the Home background while focused, and OK in the list plays the
+  trailer on YouTube. Needs a free TMDB key (`tmdb_key` in `config.xml`, or typed in Settings).
+
+`build-and-install.sh` grants `WRITE_SECURE_SETTINGS` (keeps the remote-button service on) and,
+on TCL, lets the launcher start at boot (`appops … AUTO_START`).
+
 **Navigation** is deliberate: Up and Down move exactly one row, Up from the dock goes to the top
 buttons, the ends of the button row don't fall through to tiles, and the last focused app is
 remembered when you come back, even after the app list changes.
