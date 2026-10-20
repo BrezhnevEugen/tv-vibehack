@@ -43,7 +43,7 @@
         <item>https://iptv-org.github.io/iptv/countries/ru.m3u</item>
         <item>https://iptv-org.github.io/iptv/categories/news.m3u</item>
     </string-array>
-    <!-- Extra known streams (official sites), checked first: "tvg-id|url". -->
+    <!-- Extra known streams (official sites), checked first: "tvg-id|url[|referer]". -->
     <string-array name="iptv_extra">
         <item>Russia24|https://live.smotrim.ru/vgtrk/0/russia24-hd/index.m3u8</item>
         <item>Russia1|https://live.smotrim.ru/vgtrk/0/russia1-hd/index.m3u8</item>

@@ -41,10 +41,57 @@
             android:drawSelectorOnTop="false"
             android:scrollbars="none" />
 
-        <TextView
-            style="@style/WeatherCaption"
+        <!-- Remote hints as icons: ▲▼ channel, OK list, Back exit. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_margin="16dp"
-            android:text="▲▼ КАНАЛ · OK СПИСОК · НАЗАД ВЫХОД" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:background="@drawable/key_badge"
+                android:padding="3dp"
+                android:src="@drawable/ic_updown"
+                android:contentDescription="@null" />
+
+            <TextView
+                style="@style/WeatherCaption"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="14dp"
+                android:text="канал" />
+
+            <TextView
+                style="@style/WeatherText"
+                android:layout_height="26dp"
+                android:background="@drawable/key_badge"
+                android:gravity="center"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:text="OK"
+                android:textSize="11sp" />
+
+            <TextView
+                style="@style/WeatherCaption"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="14dp"
+                android:text="список" />
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:background="@drawable/key_badge"
+                android:padding="4dp"
+                android:src="@drawable/ic_back"
+                android:contentDescription="@null" />
+
+            <TextView
+                style="@style/WeatherCaption"
+                android:layout_marginStart="6dp"
+                android:text="выход" />
+        </LinearLayout>
     </LinearLayout>
 
     <TextView
