@@ -254,7 +254,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     others.append(part);
                 }
             }
-            if (enabled && listed) return;
+            if (enabled && listed && running(me)) return;
             if (listed) {   // listed but off: write the list without ours, then with it, so it rebinds
                 Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, others.toString());
             }
@@ -263,6 +263,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             Settings.Secure.putInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 1);
         } catch (SecurityException ignored) {   // permission not granted: leave it to install.sh
         }
+    }
+
+    /** Is our service actually bound right now (not just listed in settings, e.g. right after a reinstall)? */
+    private boolean running(ComponentName me) {
+        android.view.accessibility.AccessibilityManager am = getSystemService(android.view.accessibility.AccessibilityManager.class);
+        if (am == null) return true;
+        for (android.accessibilityservice.AccessibilityServiceInfo i : am.getEnabledAccessibilityServiceList(
+                android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK)) {
+            if (me.flattenToString().equals(i.getId())) return true;
+        }
+        return false;
     }
 
     @Override
