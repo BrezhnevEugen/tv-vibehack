@@ -425,6 +425,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             showBackdrop(new android.graphics.drawable.BitmapDrawable(getResources(), Picks.art));
             return;
         }
+        // Any other tile: a trending film's still (different per tile), loaded once and cached; until it arrives,
+        // the soft colour of the app's banner.
+        final int pos = position;
+        android.graphics.Bitmap still = Picks.backdropFor(this, position, () -> {
+            if (key != null && key.equals(backdropKey)) {
+                backdropKey = null;
+                setBackdrop(pos);
+            }
+        });
+        if (still != null) {
+            showBackdrop(new android.graphics.drawable.BitmapDrawable(getResources(), still));
+            return;
+        }
         if (art == null) {
             backdrop.animate().alpha(0f).setDuration(300).start();
             return;

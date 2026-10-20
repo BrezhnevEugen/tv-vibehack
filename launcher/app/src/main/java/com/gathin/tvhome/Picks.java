@@ -114,6 +114,37 @@ final class Picks {
         }, "picks").start();
     }
 
+    /** A few loaded backdrops (each ~2–4 MB as a bitmap): enough for the dock without hurting a 1.5 GB TV. */
+    private static final android.util.LruCache<Integer, Bitmap> ARTS = new android.util.LruCache<Integer, Bitmap>(4);
+    private static final java.util.Set<Integer> LOADING = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+
+    /**
+     * A trending backdrop for any tile, so the whole Home has photos, not only the "В тренде" tile. slot picks
+     * which film (different tiles get different ones). Returns the cached bitmap, or null and loads it in the
+     * background, calling onLoaded on the main thread.
+     */
+    static Bitmap backdropFor(Context ctx, int slot, Runnable onLoaded) {
+        List<Pick> list = all(ctx);
+        if (list.isEmpty()) return null;
+        Pick p = list.get(Math.floorMod(slot + (int) (System.currentTimeMillis() / 3_600_000L), list.size()));
+        if (p.backdrop == null || p.backdrop.isEmpty()) return null;
+        Bitmap b = ARTS.get(p.id);
+        if (b != null) return b;
+        if (LOADING.add(p.id)) {
+            new Thread(() -> {
+                try {
+                    ARTS.put(p.id, Net.image(IMAGES + "w780" + p.backdrop, 1280));
+                    new Handler(Looper.getMainLooper()).post(onLoaded);
+                } catch (Exception e) {
+                    android.util.Log.w("TvHomePicks", "backdrop failed: " + e);
+                } finally {
+                    LOADING.remove(p.id);
+                }
+            }, "picks-art").start();
+        }
+        return null;
+    }
+
     /** The YouTube id of the pick's trailer (Russian first, then English), or null. Blocking. */
     static String trailer(Context c, Pick p) {
         for (String lang : new String[]{"ru-RU", "en-US"}) {
