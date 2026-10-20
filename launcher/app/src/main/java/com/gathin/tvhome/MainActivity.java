@@ -229,14 +229,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
     }
 
+    private void ensureKeyRemap() {
+        ensureKeyRemap(this);
+    }
+
     /**
      * The TV sometimes switches accessibility off (after updates or a service restart), and with it the
      * YouTube/Netflix button remap. Turn it back on whenever Home is shown; needs WRITE_SECURE_SETTINGS.
      */
-    private void ensureKeyRemap() {
+    static void ensureKeyRemap(Context ctx) {
         try {
-            android.content.ContentResolver cr = getContentResolver();
-            ComponentName me = new ComponentName(this, KeyRemapService.class);
+            android.content.ContentResolver cr = ctx.getContentResolver();
+            ComponentName me = new ComponentName(ctx, KeyRemapService.class);
             String list = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
             boolean enabled = Settings.Secure.getInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1;
             // Keep every other accessibility service the user has on; only add or re-add ours.
@@ -254,7 +258,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     others.append(part);
                 }
             }
-            if (enabled && listed && running(me)) return;
+            if (enabled && listed && running(ctx, me)) return;
             if (listed) {   // listed but off: write the list without ours, then with it, so it rebinds
                 Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, others.toString());
             }
@@ -266,8 +270,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /** Is our service actually bound right now (not just listed in settings, e.g. right after a reinstall)? */
-    private boolean running(ComponentName me) {
-        android.view.accessibility.AccessibilityManager am = getSystemService(android.view.accessibility.AccessibilityManager.class);
+    private static boolean running(Context ctx, ComponentName me) {
+        android.view.accessibility.AccessibilityManager am = ctx.getSystemService(android.view.accessibility.AccessibilityManager.class);
         if (am == null) return true;
         for (android.accessibilityservice.AccessibilityServiceInfo i : am.getEnabledAccessibilityServiceList(
                 android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK)) {

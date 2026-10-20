@@ -5,6 +5,7 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Granted over adb (install.sh): lets Home switch the remote-button service back on if the TV turns it off. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -55,6 +56,16 @@
             android:theme="@style/Theme.TvHome"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"
             android:screenOrientation="landscape" />
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Remaps the remote's app buttons (config.xml, key_remaps). -->
         <service
