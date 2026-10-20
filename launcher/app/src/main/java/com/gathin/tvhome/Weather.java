@@ -26,12 +26,15 @@ final class Weather {
         int code;
         boolean day;
         int temp;
+        int precipProb;
+        double precipMm;
     }
 
     static final class Day {
         String label;
         int code;
         int min, max, precip;
+        double precipMm;
     }
 
     static final class Data {
@@ -53,9 +56,9 @@ final class Weather {
         final String url = String.format(Locale.US,
                 "https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s"
                         + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day"
-                        + "&hourly=temperature_2m,weather_code,is_day&forecast_hours=24"
-                        + "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max"
-                        + "&forecast_days=6&wind_speed_unit=ms&timezone=auto",
+                        + "&hourly=temperature_2m,weather_code,is_day,precipitation,precipitation_probability&forecast_hours=25"
+                        + "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,precipitation_sum"
+                        + "&forecast_days=10&wind_speed_unit=ms&timezone=auto",
                 ctx.getString(R.string.weather_lat), ctx.getString(R.string.weather_lon));
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
@@ -105,12 +108,14 @@ final class Weather {
                 break;
             }
         }
-        for (int i = start; i < ht.length() && d.hours.size() < 7; i++) {
+        for (int i = start; i < ht.length() && d.hours.size() < 24; i++) {
             Hour x = new Hour();
             x.label = d.hours.isEmpty() ? "Сейчас" : ht.getString(i).substring(11, 13);
             x.temp = d.hours.isEmpty() ? d.temp : round(htemp.getDouble(i));
             x.code = d.hours.isEmpty() ? d.code : hcode.getInt(i);
             x.day = hday.getInt(i) == 1;
+            x.precipMm = h.getJSONArray("precipitation").optDouble(i, 0);
+            x.precipProb = h.getJSONArray("precipitation_probability").optInt(i, 0);
             d.hours.add(x);
         }
 
@@ -132,6 +137,7 @@ final class Weather {
             x.min = round(dl.getJSONArray("temperature_2m_min").getDouble(i));
             x.max = round(dl.getJSONArray("temperature_2m_max").getDouble(i));
             x.precip = dl.getJSONArray("precipitation_probability_max").optInt(i, 0);
+            x.precipMm = dl.getJSONArray("precipitation_sum").optDouble(i, 0);
             d.days.add(x);
         }
         if (!d.days.isEmpty()) {
