@@ -18,6 +18,8 @@ printf '%s\n' \
   "pm install -r /data/local/tmp/tvhome.apk" \
   "rm -f /data/local/tmp/tvhome.apk" \
   "pm grant com.gathin.tvhome android.permission.ACCESS_FINE_LOCATION 2>/dev/null; echo location-granted" \
+  "pm grant com.gathin.tvhome android.permission.WRITE_SECURE_SETTINGS; echo secure-settings-granted" \
+  "appops set com.gathin.tvhome AUTO_START allow 2>/dev/null; appops set com.gathin.tvhome APP_AUTO_START allow 2>/dev/null; echo autostart-allowed" \
   "cmd package set-home-activity --user 0 com.gathin.tvhome/.MainActivity" \
   "pm disable-user --user 0 $STOCK_LAUNCHER" \
   | "$PY" -I ../tools/tv.py --batch

@@ -37,7 +37,48 @@
         <item>4065=com.google.android.youtube.tv</item>
     </string-array>
 
-    <!-- Screensaver weather (Open-Meteo, no key). -->
+    <!-- The TV's own home screen, for Settings → «Главный экран телевизора» (Original). -->
+    <string name="stock_launcher" translatable="false">com.google.android.apps.tv.launcherx</string>
+
+    <!-- Apps Settings → «Отключить лишние приложения» turns off (and «Вернуть» turns back on), from the TV itself.
+         Same list as examples/tcl-g10-google-tv/debloat.txt. Wi-Fi owners and system parts are skipped (HomeMode). -->
+    <string-array name="debloat_apps">
+        <item>com.tcl.tv.plus</item>
+        <item>com.tcl.channelplus</item>
+        <item>com.tcl.waterfall.overseas</item>
+        <item>com.tcl.tv.tclhome_passive</item>
+        <item>com.tcl.partnercustomizer</item>
+        <item>com.tcl.interactive</item>
+        <item>com.tcl.smartlink.core</item>
+        <item>com.tcl.messagebox</item>
+        <item>com.tcl.usercenter</item>
+        <item>com.tcl.exhibit</item>
+        <item>com.tcl.esticker</item>
+        <item>com.tcl.hotelmenu</item>
+        <item>com.tcl.ocean.instructions</item>
+        <item>com.tcl.repairguide</item>
+        <item>com.tcl.gamebar</item>
+        <item>com.tcl.ui_mediaCenter</item>
+        <item>com.tcl.UpdatePeripheral</item>
+        <item>com.tcl.magiconnectfree</item>
+        <item>com.tcl.miracast</item>
+        <item>android.autoinstalls.config.google.gtvpai</item>
+        <item>com.google.android.feedback</item>
+        <item>com.google.android.marvin.talkback</item>
+        <item>com.google.android.apps.tv.dreamx</item>
+        <item>com.google.android.tv.remote.service</item>
+        <item>com.google.android.play.games</item>
+        <item>com.google.android.youtube.tvmusic</item>
+    </string-array>
+
+    <!-- Home look: auto (light from sunrise to sunset in the weather city), day or night. Changed in Settings. -->
+    <string name="theme" translatable="false">auto</string>
+
+    <!-- "В тренде" tile: trending films and series from TMDB. Free key: themoviedb.org → Settings → API
+         (the API key or the Read Access Token). Empty = no tile. Can also be typed in Settings. -->
+    <string name="tmdb_key" translatable="false"></string>
+
+    <!-- Screensaver weather (Open-Meteo, no key). The city can be changed in Settings. -->
     <string name="weather_city" translatable="false">Краснодар</string>
     <string name="weather_lat" translatable="false">45.0355</string>
     <string name="weather_lon" translatable="false">38.9753</string>

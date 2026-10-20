@@ -91,24 +91,32 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     private final Context ctx;
     private final TileListener listener;
     private final int dockSize;
-    /** Dock order (res/values/config.xml, dock_apps). */
-    private final List<String> favourites;
+    /** Dock order (config.xml dock_apps, or as set on the TV). Read on every reload(). */
+    private List<String> favourites;
     /** Never shown as tiles (res/values/config.xml, hidden_apps). */
     private final Set<String> hidden;
     private final List<Entry> items = new ArrayList<>();
+    /** Day look (DayNight): tile names in dark ink. */
+    private boolean day;
 
     AppAdapter(Context ctx, TileListener listener, int dockSize) {
         this.ctx = ctx;
         this.listener = listener;
         this.dockSize = dockSize;
-        this.favourites = Arrays.asList(ctx.getResources().getStringArray(R.array.dock_apps));
         this.hidden = new HashSet<>(Arrays.asList(ctx.getResources().getStringArray(R.array.hidden_apps)));
         // Tiles keep their identity across reload(), so a focused tile stays on its app instead of
         // its view being rebound to whatever app now sits in that slot.
         setHasStableIds(true);
     }
 
+    void setDay(boolean day) {
+        if (this.day == day) return;
+        this.day = day;
+        notifyDataSetChanged();
+    }
+
     void reload() {
+        favourites = Prefs.dockApps(ctx);
         PackageManager pm = ctx.getPackageManager();
         Intent probe = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
         List<ResolveInfo> found = pm.queryIntentActivities(probe, 0);
@@ -136,6 +144,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         List<Entry> inputs = hdmiEntries(fresh);
         inputs.add(weatherEntry());
         inputs.add(channelsEntry());
+        if (Prefs.picksOn(ctx)) inputs.add(picksEntry());
         // Apps that belong next to the TV tile (config.xml, front_apps), e.g. Лайм HD TV.
         for (String pkg : ctx.getResources().getStringArray(R.array.front_apps)) {
             for (int i = 0; i < fresh.size(); i++) {
@@ -165,7 +174,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         p.setColor(0xFFFFFFFF);
         p.setTypeface(ctx.getResources().getFont(R.font.outfit));
         p.setTextSize(30);
-        c.drawText(ctx.getString(R.string.weather_city), 24, 46, p);
+        c.drawText(Prefs.city(ctx), 24, 46, p);
         p.setTextSize(84);
         c.drawText(d != null ? Weather.deg(d.temp) : "—", 22, 140, p);
         p.setTextSize(24);
@@ -201,6 +210,43 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         c.drawText("Россия и мир · прямой эфир", 24, 184, p);
         Drawable banner = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bmp);
         return new Entry("ТВ каналы", "channels", banner, null, new Intent(ctx, ChannelsActivity.class));
+    }
+
+    static final String PICKS = "picks";
+
+    /** "В тренде" tile: this hour's TMDB pick over its backdrop photo, opening all the picks. */
+    private Entry picksEntry() {
+        int w = 360, h = 202;
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG | android.graphics.Paint.FILTER_BITMAP_FLAG);
+        Picks.Pick pick = Picks.current(ctx);
+        Bitmap art = Picks.art;
+        if (pick != null && art != null) {
+            // centre-crop the 16:9 photo into the tile
+            float scale = Math.max((float) w / art.getWidth(), (float) h / art.getHeight());
+            float dw = art.getWidth() * scale, dh = art.getHeight() * scale;
+            c.drawBitmap(art, null, new android.graphics.RectF((w - dw) / 2, (h - dh) / 2, (w + dw) / 2, (h + dh) / 2), p);
+        } else {
+            p.setShader(new android.graphics.LinearGradient(0, 0, w, h, 0xFF0D253F, 0xFF01B4E4, android.graphics.Shader.TileMode.CLAMP));
+            c.drawRect(0, 0, w, h, p);
+        }
+        p.setShader(new android.graphics.LinearGradient(0, h * 0.35f, 0, h, 0x00000000, 0xD9000000, android.graphics.Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
+        p.setTypeface(ctx.getResources().getFont(R.font.outfit));
+        p.setColor(0xCCFFFFFF);
+        p.setTextSize(20);
+        p.setLetterSpacing(0.12f);
+        c.drawText("В ТРЕНДЕ", 22, 140, p);
+        p.setLetterSpacing(0f);
+        p.setColor(0xFFFFFFFF);
+        p.setTextSize(32);
+        String title = pick != null ? pick.title : "Фильмы и сериалы";
+        c.drawText(String.valueOf(android.text.TextUtils.ellipsize(title, new android.text.TextPaint(p), w - 44,
+                android.text.TextUtils.TruncateAt.END)), 22, 180, p);
+        Drawable banner = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bmp);
+        return new Entry("В тренде", PICKS, banner, null, new Intent(ctx, PicksActivity.class));
     }
 
     private List<Entry> hdmiEntries(List<Entry> apps) {
@@ -253,6 +299,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     public void onBindViewHolder(@NonNull Holder h, int position) {
         Entry e = items.get(position);
         h.name.setText(e.label);
+        h.name.setTextColor(day ? 0xF21C1C1E : 0xF2FFFFFF);
         h.name.setVisibility(position < dockSize ? View.INVISIBLE : View.VISIBLE);   // the dock has no labels
         boolean focused = h.card.isFocused();   // a rebind after reload() can hit the focused tile
         h.name.setAlpha(focused ? 1f : 0f);

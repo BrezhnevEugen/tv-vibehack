@@ -41,6 +41,8 @@ final class Weather {
         String city;
         int temp, feels, humidity, wind, code, min, max;
         boolean day;
+        /** Today's sunrise and sunset (epoch ms), or 0. */
+        long sunrise, sunset;
         final List<Hour> hours = new ArrayList<>();
         final List<Day> days = new ArrayList<>();
     }
@@ -52,14 +54,15 @@ final class Weather {
     }
 
     static void fetch(Context ctx, Consumer<Data> onResult) {
-        final String city = ctx.getString(R.string.weather_city);
+        final Context app = ctx.getApplicationContext();
+        final String city = Prefs.city(ctx);
         final String url = String.format(Locale.US,
                 "https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s"
                         + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day"
                         + "&hourly=temperature_2m,weather_code,is_day,precipitation,precipitation_probability&forecast_hours=25"
-                        + "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,precipitation_sum"
+                        + "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,precipitation_sum,sunrise,sunset"
                         + "&forecast_days=10&wind_speed_unit=ms&timezone=auto",
-                ctx.getString(R.string.weather_lat), ctx.getString(R.string.weather_lon));
+                Prefs.lat(ctx), Prefs.lon(ctx));
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
             Data data = null;
@@ -80,7 +83,10 @@ final class Weather {
             } finally {
                 if (c != null) c.disconnect();
             }
-            if (data != null) last = data;
+            if (data != null) {
+                last = data;
+                if (data.sunrise > 0 && data.sunset > 0) Prefs.setSun(app, data.sunrise, data.sunset);
+            }
             final Data result = data != null ? data : last;
             main.post(() -> onResult.accept(result));
         }, "weather").start();
@@ -139,6 +145,13 @@ final class Weather {
             x.precip = dl.getJSONArray("precipitation_probability_max").optInt(i, 0);
             x.precipMm = dl.getJSONArray("precipitation_sum").optDouble(i, 0);
             d.days.add(x);
+        }
+        // Local times ("2026-10-20T06:58") in the city's time zone, which is the TV's.
+        SimpleDateFormat local = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.US);
+        try {
+            d.sunrise = local.parse(dl.getJSONArray("sunrise").getString(0)).getTime();
+            d.sunset = local.parse(dl.getJSONArray("sunset").getString(0)).getTime();
+        } catch (Exception ignored) {   // polar day or night: no sunrise or sunset
         }
         if (!d.days.isEmpty()) {
             d.min = d.days.get(0).min;

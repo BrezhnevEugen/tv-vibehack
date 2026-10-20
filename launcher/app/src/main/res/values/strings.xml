@@ -23,4 +23,5 @@
     <string name="hdmi_box">приставка</string>
     <string name="key_remap_name">Кнопки пульта</string>
     <string name="key_remap_description">Переназначает кнопки приложений на пульте.</string>
+    <string name="settings_name">Home: настройки</string>
 </resources>

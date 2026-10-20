@@ -110,6 +110,7 @@
                         android:textAllCaps="true" />
 
                     <View
+                        android:id="@+id/divider"
                         android:layout_width="1dp"
                         android:layout_height="26dp"
                         android:layout_gravity="bottom"

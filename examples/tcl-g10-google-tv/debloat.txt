@@ -26,10 +26,14 @@ com.tcl.tv.tclhome_passive             # pushes TCL content to the home screen a
 com.tcl.partnercustomizer              # TCL tweaks to Google TV home rows
 com.tcl.interactive                    # TCL TIAS background service
 com.tcl.smartlink.core                 # bundles a silent app installer (CustomInstallService)
+com.tcl.waterfall.overseas             # TCL Channel (older name), if present
+com.tcl.messagebox                     # TCL messages / promo notifications
+com.tcl.usercenter                     # TCL account
 
 # Retail demo / store mode
 com.tcl.exhibit
 com.tcl.esticker
+com.tcl.hotelmenu                      # hotel mode menu
 
 # Preloaded apps and services
 com.tcl.ocean.instructions             # e-manual
@@ -42,6 +46,10 @@ com.google.android.feedback
 com.google.android.marvin.talkback
 com.google.android.apps.tv.dreamx      # ambient mode screensaver, see quirks above
 com.google.android.tv.remote.service   # Google TV phone-app remote
+com.google.android.play.games
+com.google.android.youtube.tvmusic     # YouTube Music
+com.tcl.magiconnectfree                # screen mirroring (T-Cast)
+com.tcl.miracast                       # Miracast receiver; keep it if you cast from a phone
 
 # Optional: uncomment what you don't use
 # com.tcl.airplay2                     # AirPlay, together with the next line

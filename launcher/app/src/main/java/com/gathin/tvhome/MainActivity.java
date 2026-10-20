@@ -77,10 +77,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     // Static so they survive the activity being destroyed while another app is open (low-memory TVs,
     // or Developer options → "Don't keep activities"); they only reset when the process dies.
     private static int lastFocused = 0;
-    private static long lastWeatherFetch;
+    /** Package-visible: Settings resets it after a city change so Home fetches the new city at once. */
+    static long lastWeatherFetch;
     /** App of the last focused tile, so focus follows it when the app list changes. */
     private static String lastFocusedKey;
     private float density;
+    /** The look on screen now (null before the first applyTheme). */
+    private Boolean dayLook;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     /** Refreshes the network pill when the connection changes: at boot Wi-Fi often connects after Home is shown. */
@@ -100,6 +103,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         public void run() {
             updateGreeting();
             updateWifiLabel();
+            applyTheme();
             handler.postDelayed(this, MINUTE_MS);
         }
     };
@@ -169,7 +173,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View btnSettings = findViewById(R.id.btnSettings);
         btnInputs.setOnClickListener(v -> showInputs());
         btnWifi.setOnClickListener(v -> open(new Intent(Settings.ACTION_WIFI_SETTINGS)));
-        btnSettings.setOnClickListener(v -> open(new Intent(Settings.ACTION_SETTINGS)));
+        btnSettings.setOnClickListener(v -> open(new Intent(this, SettingsActivity.class)));   // its last row opens the TV's settings
 
         // Keep focus on the top bar at its ends and at the top: Android's focus finder would otherwise
         // jump to a tile far below when there is nothing in that direction.
@@ -208,6 +212,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         final String returnKey = lastFocusedKey;
         final int returnSlot = lastFocused;
         ensureKeyRemap();
+        applyTheme();
         adapter.reload();
         grid.scheduleLayoutAnimation();
         // Keep the Weather tile fresh: at most one request per 30 minutes while Home is shown.
@@ -217,6 +222,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 if (d != null && !isFinishing()) adapter.reload();
             });
         }
+        Picks.refresh(this, () -> {
+            if (!isFinishing()) adapter.reload();
+        });
         updateGreeting();
         updateWifiLabel();
         handler.postDelayed(minuteTick, MINUTE_MS);
@@ -238,6 +246,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * YouTube/Netflix button remap. Turn it back on whenever Home is shown; needs WRITE_SECURE_SETTINGS.
      */
     static void ensureKeyRemap(Context ctx) {
+        if (Prefs.MODE_ORIGINAL.equals(Prefs.mode(ctx))) return;   // the TV's own home is back: leave the buttons to it
         try {
             android.content.ContentResolver cr = ctx.getContentResolver();
             ComponentName me = new ComponentName(ctx, KeyRemapService.class);
@@ -342,6 +351,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             showHero(position, r.top - dy);
         } else {
             hideHero();
+            // The trending tile spreads its photo across Home; any other tile clears it.
+            if (AppAdapter.PICKS.equals(adapter.keyAt(position))) setBackdrop(position);
+            else hideBackdrop();
             // Scroll just enough so the whole glass (not only the tile) is visible.
             Rect want = new Rect(0, -(int) pad * 2, item.getWidth(), item.getHeight() + (int) pad);
             grid.requestChildRectangleOnScreen(item, want, false);
@@ -408,6 +420,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (key != null && key.equals(backdropKey)) return;
         backdropKey = key;
         android.graphics.drawable.Drawable art = adapter.artAt(position);
+        if (AppAdapter.PICKS.equals(key) && Picks.art != null) {
+            // A real photo: shown as it is, not shrunk into soft colour like an app's banner.
+            showBackdrop(new android.graphics.drawable.BitmapDrawable(getResources(), Picks.art));
+            return;
+        }
         if (art == null) {
             backdrop.animate().alpha(0f).setDuration(300).start();
             return;
@@ -422,17 +439,60 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         d.draw(c);
         android.graphics.drawable.BitmapDrawable soft = new android.graphics.drawable.BitmapDrawable(getResources(), bmp);
         soft.setFilterBitmap(true);
+        showBackdrop(soft);
+    }
+
+    private void showBackdrop(android.graphics.drawable.Drawable soft) {
         backdrop.animate().cancel();
         if (backdrop.getAlpha() < 0.05f) {
             backdrop.setImageDrawable(soft);
-            backdrop.animate().alpha(0.7f).setDuration(500).start();
+            backdrop.animate().alpha(backdropAlpha()).setDuration(500).start();
         } else {
             backdrop.animate().alpha(0.2f).setDuration(150).withEndAction(() -> {
                 backdrop.setImageDrawable(soft);
-                backdrop.animate().alpha(0.7f).setDuration(400).start();
+                backdrop.animate().alpha(backdropAlpha()).setDuration(400).start();
             }).start();
         }
         scrim.animate().alpha(1f).setDuration(300).start();
+    }
+
+    /** The artwork stays softer over the light background, so the dark text keeps its contrast. */
+    private float backdropAlpha() {
+        return Boolean.TRUE.equals(dayLook) ? 0.45f : 0.7f;
+    }
+
+    // ---- day / night -----------------------------------------------------------------------------
+
+    /** Light from sunrise to sunset (DayNight), dark otherwise; checked on every resume and every minute. */
+    private void applyTheme() {
+        boolean day = DayNight.isDay(this);
+        if (dayLook != null && dayLook == day) return;
+        dayLook = day;
+        if (day) root.setBackgroundResource(R.drawable.home_day_bg);
+        else root.setBackgroundColor(0xFF000000);
+        int ink = day ? 0x1C1C1E : 0xFFFFFF;
+        heroName.setTextColor(0xFF000000 | ink);
+        ((TextView) findViewById(R.id.clock)).setTextColor(0xFF000000 | ink);
+        greeting.setTextColor((day ? 0x99000000 : 0x8C000000) | ink);
+        ((TextView) findViewById(R.id.ampm)).setTextColor(0xB3000000 | ink);
+        ((TextView) findViewById(R.id.date)).setTextColor((day ? 0xB3000000 : 0xA6000000) | ink);
+        findViewById(R.id.divider).setBackgroundColor(0x33000000 | ink);
+        scrim.setBackgroundResource(day ? R.drawable.backdrop_scrim_day : R.drawable.backdrop_scrim);
+        android.content.res.ColorStateList pillText = getColorStateList(day ? R.drawable.pill_text_day : R.drawable.pill_text);
+        for (int id : new int[]{R.id.btnInputs, R.id.btnWifi, R.id.btnSettings}) {
+            TextView pill = findViewById(id);
+            pill.setBackgroundResource(day ? R.drawable.pill_bg_day : R.drawable.pill_bg);
+            pill.setTextColor(pillText);
+            pill.setCompoundDrawableTintList(pillText);
+        }
+        adapter.setDay(day);
+    }
+
+    private void hideBackdrop() {
+        if (backdropKey == null) return;
+        backdropKey = null;
+        backdrop.animate().alpha(0f).setDuration(300).start();
+        scrim.animate().alpha(0f).setDuration(300).start();
     }
 
     private void hideGlass() {

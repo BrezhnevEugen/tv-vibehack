@@ -78,9 +78,9 @@ public class WeatherActivity extends Activity {
         map.setBackgroundColor(0xFF000000);
         ((FrameLayout) findViewById(R.id.dreamRoot)).addView(map,
                 new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        map.loadUrl("file:///android_asset/map/index.html?lat=" + getString(R.string.weather_lat)
-                + "&lon=" + getString(R.string.weather_lon)
-                + "&city=" + android.net.Uri.encode(getString(R.string.weather_city)));
+        map.loadUrl("file:///android_asset/map/index.html?lat=" + Prefs.lat(this)
+                + "&lon=" + Prefs.lon(this)
+                + "&city=" + android.net.Uri.encode(Prefs.city(this)));
         map.requestFocus();
     }
 
