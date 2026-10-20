@@ -79,9 +79,17 @@ final class Weather {
                     while ((n = in.read(buf)) > 0 && out.size() < 262144) out.write(buf, 0, n);
                     data = parse(city, new JSONObject(out.toString("UTF-8")));
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                android.util.Log.w("TvHomeWeather", "open-meteo failed: " + e);
             } finally {
                 if (c != null) c.disconnect();
+            }
+            if (data == null) {   // Open-Meteo down or unreachable: MET Norway (also free, no key)
+                try {
+                    data = metNo(city, Prefs.lat(app), Prefs.lon(app));
+                } catch (Exception e) {
+                    android.util.Log.w("TvHomeWeather", "met.no failed: " + e);
+                }
             }
             if (data != null) {
                 last = data;
@@ -90,6 +98,110 @@ final class Weather {
             final Data result = data != null ? data : last;
             main.post(() -> onResult.accept(result));
         }, "weather").start();
+    }
+
+    /** Same Data from api.met.no (Norwegian Meteorological Institute): hourly series, aggregated into days here. */
+    private static Data metNo(String city, String lat, String lon) throws Exception {
+        String json = Net.text(String.format(Locale.US,
+                "https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=%.4f&lon=%.4f",
+                Double.parseDouble(lat), Double.parseDouble(lon)),
+                java.util.Collections.singletonMap("User-Agent", "tvhome/1.0 github.com/BrezhnevEugen/tv-vibehack"));
+        JSONArray ts = new JSONObject(json).getJSONObject("properties").getJSONArray("timeseries");
+        java.text.SimpleDateFormat iso = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+        iso.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        java.text.SimpleDateFormat hh = new java.text.SimpleDateFormat("HH", Locale.US);
+        java.text.SimpleDateFormat day = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        java.text.SimpleDateFormat dow = new java.text.SimpleDateFormat("EE", new Locale("ru"));
+        Data d = new Data();
+        d.city = city;
+        long now = System.currentTimeMillis();
+        java.util.LinkedHashMap<String, Day> days = new java.util.LinkedHashMap<>();
+        java.util.Map<String, Integer> dayCodeHour = new java.util.HashMap<>();
+        for (int i = 0; i < ts.length(); i++) {
+            JSONObject t = ts.getJSONObject(i);
+            long when = iso.parse(t.getString("time")).getTime();
+            JSONObject data = t.getJSONObject("data");
+            JSONObject inst = data.getJSONObject("instant").getJSONObject("details");
+            int temp = round(inst.getDouble("air_temperature"));
+            JSONObject n1 = data.optJSONObject("next_1_hours"), n6 = data.optJSONObject("next_6_hours");
+            JSONObject next = n1 != null ? n1 : n6;
+            String sym = next != null ? next.getJSONObject("summary").optString("symbol_code", "cloudy") : "cloudy";
+            double mm = next != null ? next.optJSONObject("details") != null ? next.getJSONObject("details").optDouble("precipitation_amount", 0) : 0 : 0;
+            int prob = next != null && next.optJSONObject("details") != null
+                    ? (int) Math.round(next.getJSONObject("details").optDouble("probability_of_precipitation", 0)) : 0;
+            if (when + 3_600_000L < now) continue;
+            if (d.hours.isEmpty()) {
+                d.temp = temp;
+                d.feels = round(inst.optDouble("apparent_air_temperature", inst.getDouble("air_temperature")));
+                d.humidity = (int) Math.round(inst.optDouble("relative_humidity", 0));
+                d.wind = round(inst.optDouble("wind_speed", 0));
+                d.code = wmo(sym);
+                d.day = !sym.endsWith("_night");
+            }
+            if (d.hours.size() < 24 && n1 != null) {
+                Hour h = new Hour();
+                h.label = d.hours.isEmpty() ? "Сейчас" : hh.format(new java.util.Date(when));
+                h.temp = temp;
+                h.code = wmo(sym);
+                h.day = !sym.endsWith("_night");
+                h.precipMm = mm;
+                h.precipProb = prob;
+                d.hours.add(h);
+            }
+            String key = day.format(new java.util.Date(when));
+            Day x = days.get(key);
+            if (x == null) {
+                if (days.size() >= 10) continue;
+                x = new Day();
+                x.min = temp;
+                x.max = temp;
+                x.code = wmo(sym);
+                days.put(key, x);
+            }
+            x.min = Math.min(x.min, temp);
+            x.max = Math.max(x.max, temp);
+            x.precipMm += mm;
+            x.precip = Math.max(x.precip, prob);
+            int hour = Integer.parseInt(hh.format(new java.util.Date(when)));
+            Integer best = dayCodeHour.get(key);   // the day's symbol: the one closest to 13:00
+            if (best == null || Math.abs(hour - 13) < Math.abs(best - 13)) {
+                dayCodeHour.put(key, hour);
+                x.code = wmo(sym);
+            }
+        }
+        int i = 0;
+        for (java.util.Map.Entry<String, Day> e : days.entrySet()) {
+            Day x = e.getValue();
+            if (i == 0) x.label = "Сегодня";
+            else {
+                String s = dow.format(day.parse(e.getKey()));
+                x.label = s.substring(0, 1).toUpperCase(new Locale("ru")) + s.substring(1).replace(".", "");
+            }
+            d.days.add(x);
+            i++;
+        }
+        if (!d.days.isEmpty()) {
+            d.min = d.days.get(0).min;
+            d.max = d.days.get(0).max;
+        }
+        return d;
+    }
+
+    /** MET Norway symbol → WMO code, so the rest of the code (icons, sky, text) stays the same. */
+    private static int wmo(String sym) {
+        String s = sym.replace("_day", "").replace("_night", "").replace("_polartwilight", "");
+        if (s.equals("clearsky")) return 0;
+        if (s.equals("fair")) return 1;
+        if (s.equals("partlycloudy")) return 2;
+        if (s.equals("cloudy")) return 3;
+        if (s.equals("fog")) return 45;
+        if (s.contains("thunder")) return 95;
+        if (s.contains("snow") || s.contains("sleet")) return s.contains("showers") ? 85 : 73;
+        if (s.contains("rainshowers")) return 80;
+        if (s.contains("lightrain")) return 61;
+        if (s.contains("heavyrain")) return 65;
+        if (s.contains("rain")) return 63;
+        return 3;
     }
 
     private static Data parse(String city, JSONObject root) throws Exception {
