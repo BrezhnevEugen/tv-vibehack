@@ -117,6 +117,7 @@ public class ChannelsActivity extends Activity {
         rows.clear();
         String group = null;
         for (Iptv.Channel c : cs) {
+            if (!c.available()) continue;   // only channels that actually answer
             if (!c.group.equals(group)) {
                 group = c.group;
                 rows.add(group);
@@ -156,6 +157,7 @@ public class ChannelsActivity extends Activity {
         rows.clear();
         String group = null;
         for (Iptv.Channel c : favourites) {
+            if (!c.available()) continue;
             if (!c.group.equals(group)) {
                 group = c.group;
                 rows.add(group);
@@ -205,7 +207,7 @@ public class ChannelsActivity extends Activity {
     /** A country's (or, with topic, a theme's) channels. */
     private void showCountry(String code, String name, boolean topic) {
         backAction = topic ? new Action("‹  Темы", this::showTopics) : new Action("‹  Страны", this::showCountries);
-        filter = null;
+        filter = topic ? null : "General";   // a country opens on its broadcast channels
         rows.clear();
         rows.add(backAction);
         rows.add(name + " · загрузка…");
@@ -244,6 +246,7 @@ public class ChannelsActivity extends Activity {
         java.util.TreeSet<String> cats = new java.util.TreeSet<>();
         for (Iptv.Channel c : channels) if (c.state != -1) cats.add(c.category);
         List<String> order = new ArrayList<>(cats);
+        if (order.remove("General")) order.add(0, "General");
         if (order.isEmpty()) return;
         if (filter == null) filter = order.get(0);
         else {
@@ -267,6 +270,11 @@ public class ChannelsActivity extends Activity {
         rows.add(countryName + (checked < channels.size()
                 ? " · проверено " + checked + " из " + channels.size()
                 : " · работают " + live));
+        if ("General".equals(filter)) {   // no broadcast channels in this list: show everything
+            boolean any = false;
+            for (Iptv.Channel c : channels) if (c.state != -1 && "General".equals(c.category)) any = true;
+            if (!any) filter = null;
+        }
         rows.add(new Action("Тема: " + (filter == null ? "все" : Iptv.themeRu(filter)) + "   (OK — следующая)", this::nextFilter));
         List<Iptv.Channel> shown = new ArrayList<>();
         for (Iptv.Channel c : channels) {
@@ -276,6 +284,8 @@ public class ChannelsActivity extends Activity {
         }
         if (filter == null) {   // all themes: grouped by theme, then by name
             shown.sort((a, b) -> {
+                boolean ga = "General".equals(a.category), gb = "General".equals(b.category);
+                if (ga != gb) return ga ? -1 : 1;   // broadcast channels first
                 int t = Iptv.themeRu(a.category).compareTo(Iptv.themeRu(b.category));
                 return t != 0 ? t : a.name.compareToIgnoreCase(b.name);
             });
@@ -313,7 +323,9 @@ public class ChannelsActivity extends Activity {
             h.put("Referer", c.referer);
             http.setDefaultRequestProperties(h);
         }
-        player.setMediaSource(new HlsMediaSource.Factory(http).createMediaSource(MediaItem.fromUri(c.url)));
+        // HLS (.m3u8) or DASH (.mpd, e.g. Первый канал), picked from the URL.
+        player.setMediaSource(new androidx.media3.exoplayer.source.DefaultMediaSourceFactory(http)
+                .createMediaSource(MediaItem.fromUri(c.url)));
         player.prepare();
         player.setPlayWhenReady(true);
         status.setText("");
@@ -378,6 +390,7 @@ public class ChannelsActivity extends Activity {
     protected void onStop() {
         super.onStop();
         player.pause();
+        finish();   // reopening the tile always starts on the open Russian list; nothing plays in the background
     }
 
     @Override

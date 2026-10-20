@@ -37,27 +37,36 @@
     <string name="weather_lon" translatable="false">38.9753</string>
 
     <!-- TV channels tile: playlists from iptv-org (public, free streams) and the channels to take from them,
-         "tvg-id[@variant]|Name" in order. Missing ones are skipped. -->
+         "tvg-id[@variant][,other-id…]|Name" in order. Missing ones are skipped. -->
     <string-array name="iptv_playlists">
+        <item>https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_russia.m3u8</item>
         <item>https://iptv-org.github.io/iptv/countries/ru.m3u</item>
         <item>https://iptv-org.github.io/iptv/categories/news.m3u</item>
+    </string-array>
+    <!-- Extra known streams (official sites), checked first: "tvg-id|url". -->
+    <string-array name="iptv_extra">
+        <item>Russia24|https://live.smotrim.ru/vgtrk/0/russia24-hd/index.m3u8</item>
+        <item>Russia1|https://live.smotrim.ru/vgtrk/0/russia1-hd/index.m3u8</item>
+        <item>RussiaK|https://live.smotrim.ru/vgtrk/0/kultura-hd/index.m3u8</item>
     </string-array>
     <string-array name="iptv_russia">
         <item>ChannelOne|Первый канал</item>
         <item>Russia1|Россия 1</item>
         <item>NTV|НТВ</item>
-        <item>Channel5|Пятый канал</item>
+        <item>Match|Матч ТВ</item>
+        <item>Channel5,5Kanal|Пятый канал</item>
         <item>RussiaK|Россия К</item>
         <item>Russia24|Россия 24</item>
         <item>OTR|ОТР</item>
+        <item>Karusel|Карусель</item>
         <item>TVCentr|ТВ Центр</item>
         <item>RENTV|РЕН ТВ</item>
-        <item>Spas|Спас</item>
+        <item>Spas,TelekanalSpas|Спас</item>
         <item>STS|СТС</item>
         <item>Domashniy|Домашний</item>
         <item>TV3|ТВ-3</item>
-        <item>Friday|Пятница!</item>
-        <item>Zvezda|Звезда</item>
+        <item>Friday,Pyatnitsa|Пятница!</item>
+        <item>Zvezda,TelekanalZvezda|Звезда</item>
         <item>Mir|Мир</item>
         <item>TNT|ТНТ</item>
         <item>MuzTV|Муз-ТВ</item>

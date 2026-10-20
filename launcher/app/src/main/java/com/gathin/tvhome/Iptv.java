@@ -51,9 +51,22 @@ final class Iptv {
         final String[] playlists = ctx.getResources().getStringArray(R.array.iptv_playlists);
         final String[] russia = ctx.getResources().getStringArray(R.array.iptv_russia);
         final String[] world = ctx.getResources().getStringArray(R.array.iptv_world);
+        final String[] extra = ctx.getResources().getStringArray(R.array.iptv_extra);
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
             List<Entry> all = new ArrayList<>();
+            for (String x : extra) {
+                String[] kv = x.split("\\|", 2);
+                if (kv.length != 2) continue;
+                Entry e = new Entry();
+                e.id = kv[0];
+                e.variant = "";
+                e.url = kv[1];
+                e.name = kv[0];
+                e.cat = "";
+                e.hd = true;
+                all.add(e);
+            }
             for (String p : playlists) {
                 try {
                     all.addAll(parse(p));
@@ -85,17 +98,19 @@ final class Iptv {
         for (String w : wanted) {
             String[] kv = w.split("\\|", 2);
             if (kv.length != 2) continue;
-            String id = kv[0], variant = null;
-            int at = id.indexOf('@');
-            if (at >= 0) {
-                variant = id.substring(at + 1);
-                id = id.substring(0, at);
-            }
             List<Entry> cands = new ArrayList<>();
-            for (Entry e : all) {
-                if (!e.id.equalsIgnoreCase(id)) continue;
-                if (variant != null && !variant.equalsIgnoreCase(e.variant)) continue;
-                cands.add(e);
+            for (String alt : kv[0].split(",")) {   // the same channel under different ids in different playlists
+                String id = alt.trim(), variant = null;
+                int at = id.indexOf('@');
+                if (at >= 0) {
+                    variant = id.substring(at + 1);
+                    id = id.substring(0, at);
+                }
+                for (Entry e : all) {
+                    if (!e.id.equalsIgnoreCase(id)) continue;
+                    if (variant != null && !variant.equalsIgnoreCase(e.variant)) continue;
+                    if (!cands.contains(e)) cands.add(e);
+                }
             }
             if (cands.isEmpty()) continue;
             cands.sort((a, b) -> Integer.compare(score(b), score(a)));
@@ -136,7 +151,7 @@ final class Iptv {
             case "Animation": return "Мультфильмы";
             case "Documentary": return "Документальные";
             case "Entertainment": return "Развлечения";
-            case "General": return "Общие";
+            case "General": return "Эфирные";
             case "Lifestyle": return "Стиль и мода";
             case "Religious": return "Религия";
             case "Business": return "Бизнес";
@@ -229,7 +244,8 @@ final class Iptv {
             if (c.getResponseCode() != 200) return false;
             byte[] buf = new byte[256];
             int n = c.getInputStream().read(buf);
-            return n > 0 && new String(buf, 0, n, "UTF-8").contains("#EXTM3U");
+            String head = n > 0 ? new String(buf, 0, n, "UTF-8") : "";
+            return head.contains("#EXTM3U") || head.contains("<MPD") || head.contains("<?xml");   // HLS or DASH
         } catch (Exception ex) {
             return false;
         } finally {
