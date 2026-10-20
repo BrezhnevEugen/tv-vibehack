@@ -62,6 +62,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private GlassView glass;
     private View ambient;
     private TextView heroName;
+    private ImageView backdrop;
+    private View scrim;
+    private String backdropKey;
     private GradientDrawable ambientGlow;
     private int ambientColor;
     private boolean heroShown;
@@ -111,6 +114,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         glass = findViewById(R.id.glass);
         ambient = findViewById(R.id.ambient);
         heroName = findViewById(R.id.heroName);
+        backdrop = findViewById(R.id.backdrop);
+        scrim = findViewById(R.id.scrim);
         ambientGlow = new GradientDrawable();
         ambientGlow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
         ambientGlow.setGradientCenter(0.32f, 0.42f);
@@ -194,6 +199,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroShown = false;
         heroName.setAlpha(0f);
         ambient.setAlpha(0f);
+        backdrop.setAlpha(0f);
+        scrim.setAlpha(0f);
+        backdropKey = null;
         // Read these before reload(): rebinding can move focus to the first tile and overwrite them.
         final String returnKey = lastFocusedKey;
         final int returnSlot = lastFocused;
@@ -286,6 +294,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int color = adapter.ambientColorAt(position);
         float y = dockTopInRoot - 14 * density - 26 * density - heroName.getHeight();
         boolean changed = !label.contentEquals(heroName.getText());
+        setBackdrop(position);
 
         if (!heroShown) {
             heroName.setText(label);
@@ -324,6 +333,45 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroShown = false;
         heroName.animate().alpha(0f).setDuration(160).start();
         ambient.animate().alpha(0f).setDuration(300).start();
+        backdrop.animate().alpha(0f).setDuration(300).start();
+        scrim.animate().alpha(0f).setDuration(300).start();
+        backdropKey = null;
+    }
+
+    /**
+     * Shows the app's artwork across the screen. It is drawn once into a tiny bitmap and stretched with
+     * filtering, which gives a soft, colourful backdrop without a blur pass (cheap on a 1 GB TV).
+     */
+    private void setBackdrop(int position) {
+        String key = adapter.keyAt(position);
+        if (key != null && key.equals(backdropKey)) return;
+        backdropKey = key;
+        android.graphics.drawable.Drawable art = adapter.artAt(position);
+        if (art == null) {
+            backdrop.animate().alpha(0f).setDuration(300).start();
+            return;
+        }
+        android.graphics.drawable.Drawable d = art.getConstantState() != null
+                ? art.getConstantState().newDrawable().mutate() : art;
+        int w = 16, h = 9;   // tiny on purpose: stretched, it turns into soft colour, not a pixelated logo
+        android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas c = new android.graphics.Canvas(bmp);
+        c.drawColor(0xFF000000);
+        d.setBounds(0, 0, w, h);
+        d.draw(c);
+        android.graphics.drawable.BitmapDrawable soft = new android.graphics.drawable.BitmapDrawable(getResources(), bmp);
+        soft.setFilterBitmap(true);
+        backdrop.animate().cancel();
+        if (backdrop.getAlpha() < 0.05f) {
+            backdrop.setImageDrawable(soft);
+            backdrop.animate().alpha(0.7f).setDuration(500).start();
+        } else {
+            backdrop.animate().alpha(0.2f).setDuration(150).withEndAction(() -> {
+                backdrop.setImageDrawable(soft);
+                backdrop.animate().alpha(0.7f).setDuration(400).start();
+            }).start();
+        }
+        scrim.animate().alpha(1f).setDuration(300).start();
     }
 
     private void hideGlass() {

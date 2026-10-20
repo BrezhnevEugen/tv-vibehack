@@ -9,8 +9,8 @@ android {
     defaultConfig {
         applicationId 'com.gathin.tvhome'
         minSdk 26
-        targetSdk 29
-        versionCode 2
+        targetSdk 31
+        versionCode 3
         versionName '2.0'
     }
 

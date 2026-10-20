@@ -62,13 +62,13 @@ def main():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            out = dev.shell(line, read_timeout_s=120.0)
+            out = dev.shell(line, read_timeout_s=400.0)
             sys.stdout.write(f"$ {line}\n{out}")
             if out and not out.endswith("\n"):
                 sys.stdout.write("\n")
             sys.stdout.flush()
     else:
-        out = dev.shell(" ".join(args), read_timeout_s=120.0)
+        out = dev.shell(" ".join(args), read_timeout_s=400.0)
         sys.stdout.write(out)
     dev.close()
 

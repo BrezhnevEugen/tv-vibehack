@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keeps the clock, title and dock readable over the backdrop: dark on the left and at the bottom. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape><gradient android:angle="0" android:startColor="#F2000000" android:centerColor="#80000000" android:endColor="#00000000" /></shape>
+    </item>
+    <item>
+        <shape><gradient android:angle="90" android:startColor="#FF000000" android:centerColor="#66000000" android:endColor="#00000000" /></shape>
+    </item>
+    <item>
+        <shape><gradient android:angle="270" android:startColor="#99000000" android:endColor="#00000000" android:type="linear" /></shape>
+    </item>
+</layer-list>

@@ -20,4 +20,7 @@
     <string name="cant_open">Can\'t open %1$s</string>
     <string name="date_format">EEEE  d MMMM</string>
     <string name="dream_name">Clock</string>
+    <string name="hdmi_box">приставка</string>
+    <string name="key_remap_name">Кнопки пульта</string>
+    <string name="key_remap_description">Переназначает кнопки приложений на пульте.</string>
 </resources>

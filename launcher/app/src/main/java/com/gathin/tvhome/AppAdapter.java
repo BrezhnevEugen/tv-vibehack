@@ -12,6 +12,9 @@ import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
+import android.media.tv.TvContract;
+import android.media.tv.TvInputInfo;
+import android.media.tv.TvInputManager;
 import android.net.Uri;
 import android.provider.Settings;
 import android.view.KeyEvent;
@@ -53,6 +56,9 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         final String pkg;
         final Drawable banner;
         final Drawable icon;
+        /** Set for HDMI tiles: opens the input instead of an app. */
+        final Intent intent;
+        final String key;
         int ambient;
 
         Entry(String label, ComponentName component, Drawable banner, Drawable icon) {
@@ -61,6 +67,22 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             this.pkg = component.getPackageName();
             this.banner = banner;
             this.icon = icon;
+            this.intent = null;
+            this.key = component.flattenToShortString();
+        }
+
+        Entry(String label, String key, Drawable banner, Drawable icon, Intent intent) {
+            this.label = label;
+            this.component = null;
+            this.pkg = "";
+            this.banner = banner;
+            this.icon = icon;
+            this.intent = intent;
+            this.key = key;
+        }
+
+        boolean isInput() {
+            return intent != null;
         }
     }
 
@@ -110,9 +132,51 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             }
             return a.label.compareToIgnoreCase(b.label);
         });
+        // HDMI tiles go right after the dock, like the input cards on the stock Google TV home.
+        List<Entry> inputs = hdmiEntries(fresh);
+        fresh.addAll(Math.min(dockSize, fresh.size()), inputs);
         items.clear();
         items.addAll(fresh);
         notifyDataSetChanged();
+    }
+
+    private List<Entry> hdmiEntries(List<Entry> apps) {
+        List<Entry> out = new ArrayList<>();
+        TvInputManager tim = (TvInputManager) ctx.getSystemService(Context.TV_INPUT_SERVICE);
+        if (tim == null) return out;
+        List<TvInputInfo> list = new ArrayList<>(tim.getTvInputList());
+        Collections.sort(list, (a, b) -> String.valueOf(a.loadLabel(ctx)).compareToIgnoreCase(String.valueOf(b.loadLabel(ctx))));
+        Drawable icon = ctx.getDrawable(R.drawable.ic_input);
+        // A device found over HDMI-CEC (e.g. "Apple TV") is a child input of its port: show the port once,
+        // named after the device.
+        java.util.Map<String, String> deviceOnPort = new java.util.HashMap<>();
+        for (TvInputInfo info : list) {
+            if (info.getParentId() == null) continue;
+            CharSequence l = info.loadLabel(ctx);
+            if (l != null) deviceOnPort.put(info.getParentId(), l.toString().replaceFirst("(?i)^HDMI\\s*", "").trim());
+        }
+        for (TvInputInfo info : list) {
+            if (!info.isPassthroughInput() || info.getType() != TvInputInfo.TYPE_HDMI || info.getParentId() != null) continue;
+            CharSequence l = info.loadLabel(ctx);
+            String label = l == null ? info.getId() : l.toString();
+            if (!label.toUpperCase().contains("HDMI")) label = "HDMI " + label;
+            String device = deviceOnPort.get(info.getId());
+            // Only ports with something on them: a device seen over CEC, or a live signal.
+            boolean live = tim.getInputState(info.getId()) == TvInputManager.INPUT_STATE_CONNECTED;
+            if (device == null && !live) continue;
+            Drawable art = null;
+            if (device != null && !device.isEmpty()) {
+                // A box whose name matches an installed app (Apple TV) borrows that app's banner.
+                for (Entry a : apps) {
+                    if (a.banner != null && a.label.equalsIgnoreCase(device)) art = a.banner;
+                }
+                label = device + " " + ctx.getString(R.string.hdmi_box);
+            }
+            Intent i = new Intent(Intent.ACTION_VIEW).setDataAndType(
+                    TvContract.buildChannelUriForPassthroughInput(info.getId()), "vnd.android.cursor.item/channel");
+            out.add(new Entry(label, "input:" + info.getId(), art, icon, i));
+        }
+        return out;
     }
 
     @NonNull
@@ -131,7 +195,15 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         h.name.setAlpha(focused ? 1f : 0f);
         h.card.setScaleX(focused ? FOCUS_SCALE : 1f);
         h.card.setScaleY(focused ? FOCUS_SCALE : 1f);
-        if (e.banner != null) {
+        h.card.setBackgroundResource(e.isInput() && e.banner == null ? R.drawable.tile_hdmi_bg : R.drawable.tile_bg);
+        if (e.isInput() && e.banner == null) {
+            h.banner.setImageDrawable(null);
+            h.banner.setVisibility(View.GONE);
+            h.icon.setImageDrawable(e.icon);
+            h.icon.setVisibility(View.VISIBLE);
+            h.label.setText(e.label);
+            h.label.setVisibility(View.VISIBLE);
+        } else if (e.banner != null) {
             h.banner.setImageDrawable(e.banner);
             h.banner.setVisibility(View.VISIBLE);
             h.icon.setVisibility(View.GONE);
@@ -146,6 +218,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         }
         h.card.setOnClickListener(v -> launch(e));
         h.card.setOnLongClickListener(v -> {
+            if (e.isInput()) return false;
             Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + e.pkg));
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             try {
@@ -157,6 +230,14 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     private void launch(Entry e) {
+        if (e.isInput()) {
+            try {
+                ctx.startActivity(new Intent(e.intent).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (Exception ex) {
+                Toast.makeText(ctx, ctx.getString(R.string.cant_open, e.label), Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
         Intent i = new Intent(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                 .setComponent(e.component)
@@ -175,25 +256,32 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
 
     @Override
     public long getItemId(int position) {
-        return items.get(position).component.flattenToShortString().hashCode();
+        return items.get(position).key.hashCode();
     }
 
     /** Stable key for the app at a position (its component), or null. */
     String keyAt(int position) {
-        return position >= 0 && position < items.size() ? items.get(position).component.flattenToShortString() : null;
+        return position >= 0 && position < items.size() ? items.get(position).key : null;
     }
 
     /** Position of the app with this key, or -1 when it is gone. */
     int positionOf(String key) {
         if (key == null) return -1;
         for (int i = 0; i < items.size(); i++) {
-            if (items.get(i).component.flattenToShortString().equals(key)) return i;
+            if (items.get(i).key.equals(key)) return i;
         }
         return -1;
     }
 
     String labelAt(int position) {
         return position >= 0 && position < items.size() ? items.get(position).label : "";
+    }
+
+    /** The focused tile's artwork for the backdrop, or null. */
+    Drawable artAt(int position) {
+        if (position < 0 || position >= items.size()) return null;
+        Entry e = items.get(position);
+        return e.banner != null ? e.banner : e.icon;
     }
 
     /** A vivid colour sampled from the app's banner (or icon), cached per entry. */
