@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TV channels: full-screen player, channel list on the left (hides while watching), name badge top right. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF000000">
+
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/player"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:focusable="false"
+        app:use_controller="false"
+        app:show_buffering="when_playing"
+        app:resize_mode="fit" />
+
+    <LinearLayout
+        android:id="@+id/listPanel"
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:background="#E60B0F17"
+        android:orientation="vertical"
+        android:paddingTop="28dp">
+
+        <TextView
+            style="@style/WeatherText"
+            android:layout_marginStart="24dp"
+            android:layout_marginBottom="12dp"
+            android:text="ТВ каналы"
+            android:textSize="24sp"
+            android:fontVariationSettings="'wght' 400" />
+
+        <ListView
+            android:id="@+id/list"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:divider="@null"
+            android:listSelector="@drawable/channel_selector"
+            android:drawSelectorOnTop="false"
+            android:scrollbars="none" />
+
+        <TextView
+            style="@style/WeatherCaption"
+            android:layout_margin="16dp"
+            android:text="▲▼ КАНАЛ · OK СПИСОК · НАЗАД ВЫХОД" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/badge"
+        style="@style/WeatherText"
+        android:layout_gravity="top|end"
+        android:layout_margin="28dp"
+        android:background="@drawable/weather_card"
+        android:paddingStart="18dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="8dp"
+        android:textSize="22sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/status"
+        style="@style/WeatherText"
+        android:layout_gravity="center"
+        android:textSize="20sp"
+        android:textColor="#CCFFFFFF" />
+</FrameLayout>

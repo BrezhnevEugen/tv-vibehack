@@ -47,6 +47,13 @@
             android:theme="@style/Theme.TvHome"
             android:screenOrientation="landscape" />
 
+        <activity
+            android:name=".ChannelsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TvHome"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"
+            android:screenOrientation="landscape" />
+
         <!-- Remaps the remote's app buttons (config.xml, key_remaps). -->
         <service
             android:name=".KeyRemapService"

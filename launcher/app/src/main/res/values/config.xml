@@ -36,6 +36,46 @@
     <string name="weather_lat" translatable="false">45.0355</string>
     <string name="weather_lon" translatable="false">38.9753</string>
 
+    <!-- TV channels tile: playlists from iptv-org (public, free streams) and the channels to take from them,
+         "tvg-id[@variant]|Name" in order. Missing ones are skipped. -->
+    <string-array name="iptv_playlists">
+        <item>https://iptv-org.github.io/iptv/countries/ru.m3u</item>
+        <item>https://iptv-org.github.io/iptv/categories/news.m3u</item>
+    </string-array>
+    <string-array name="iptv_russia">
+        <item>ChannelOne|Первый канал</item>
+        <item>Russia1|Россия 1</item>
+        <item>NTV|НТВ</item>
+        <item>Channel5|Пятый канал</item>
+        <item>RussiaK|Россия К</item>
+        <item>Russia24|Россия 24</item>
+        <item>OTR|ОТР</item>
+        <item>TVCentr|ТВ Центр</item>
+        <item>RENTV|РЕН ТВ</item>
+        <item>Spas|Спас</item>
+        <item>STS|СТС</item>
+        <item>Domashniy|Домашний</item>
+        <item>TV3|ТВ-3</item>
+        <item>Friday|Пятница!</item>
+        <item>Zvezda|Звезда</item>
+        <item>Mir|Мир</item>
+        <item>TNT|ТНТ</item>
+        <item>MuzTV|Муз-ТВ</item>
+        <item>Kuban24|Кубань 24</item>
+        <item>TelekanalKrasnodar|Краснодар</item>
+    </string-array>
+    <string-array name="iptv_world">
+        <item>EuronewsRussian|Euronews (рус)</item>
+        <item>CGTNRussian|CGTN (рус)</item>
+        <item>EuronewsEnglish|Euronews</item>
+        <item>DW|DW</item>
+        <item>France24|France 24</item>
+        <item>AlJazeera@English|Al Jazeera</item>
+        <item>NHKWorldJapan|NHK World</item>
+        <item>TRTWorld|TRT World</item>
+        <item>CNAInternational|CNA</item>
+    </string-array>
+
     <!-- Tiles per row in the grid; the dock always has this many slots. -->
     <integer name="columns">4</integer>
 </resources>

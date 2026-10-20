@@ -135,6 +135,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         // HDMI tiles go right after the dock, like the input cards on the stock Google TV home.
         List<Entry> inputs = hdmiEntries(fresh);
         inputs.add(weatherEntry());
+        inputs.add(channelsEntry());
         fresh.addAll(Math.min(dockSize, fresh.size()), inputs);
         items.clear();
         items.addAll(fresh);
@@ -169,6 +170,28 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         Drawable banner = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bmp);
         Intent i = new Intent(ctx, WeatherActivity.class);
         return new Entry("Погода", "weather", banner, null, i);
+    }
+
+    /** "ТВ каналы" tile: opens the live channel player. */
+    private Entry channelsEntry() {
+        int w = 360, h = 202;
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        p.setShader(new android.graphics.LinearGradient(0, 0, w, h, 0xFFE0263B, 0xFF3A1C71, android.graphics.Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
+        p.setColor(0xFFFFFFFF);
+        p.setTypeface(ctx.getResources().getFont(R.font.outfit));
+        p.setTextSize(64);
+        c.drawText("📺", 24, 96, p);
+        p.setTextSize(40);
+        c.drawText("ТВ каналы", 24, 150, p);
+        p.setTextSize(22);
+        p.setColor(0xCCFFFFFF);
+        c.drawText("Россия и мир · прямой эфир", 24, 184, p);
+        Drawable banner = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bmp);
+        return new Entry("ТВ каналы", "channels", banner, null, new Intent(ctx, ChannelsActivity.class));
     }
 
     private List<Entry> hdmiEntries(List<Entry> apps) {
