@@ -80,14 +80,24 @@ public class ChannelsActivity extends Activity {
             public void onPlayerError(PlaybackException error) {
                 status.setText("Канал сейчас недоступен");
                 if (current >= 0) {
-                    channels.get(current).state = -1;
+                    Iptv.Channel dead = channels.get(current);
+                    dead.state = -1;
+                    if (favourites != null && favourites.contains(dead)) Iptv.save(ChannelsActivity.this, favourites);
+                    rows.remove(dead);   // gone from the list, like after a check
                     adapter.notifyDataSetChanged();
+                    play(current + 1);   // and straight on to the next channel
                 }
             }
 
             @Override
             public void onPlaybackStateChanged(int state) {
-                if (state == Player.STATE_READY) status.setText("");
+                if (state == Player.STATE_READY) {
+                    status.setText("");
+                    if (current >= 0 && channels.get(current).state == 0) {
+                        channels.get(current).state = 1;
+                        if (favourites != null && favourites.contains(channels.get(current))) Iptv.save(ChannelsActivity.this, favourites);
+                    }
+                }
             }
         });
 
@@ -103,10 +113,33 @@ public class ChannelsActivity extends Activity {
             }
         });
 
-        if (Iptv.cache != null) setChannels(Iptv.cache);
-        Iptv.load(this, cs -> {
-            if (!isFinishing() && cs != null && channels.isEmpty()) setChannels(cs);
-            else if (cs == null && channels.isEmpty()) status.setText("Не удалось загрузить список каналов");
+        // Instant open from the last saved list; the network is only touched on first run or on the check button.
+        List<Iptv.Channel> saved = Iptv.cache != null ? Iptv.cache : Iptv.restore(this);
+        if (saved != null) {
+            setChannels(saved);
+        } else {
+            status.setText("Загрузка каналов…");
+            Iptv.load(this, false, cs -> {
+                if (isFinishing()) return;
+                if (cs != null) setChannels(cs);
+                else status.setText("Не удалось загрузить список каналов");
+            });
+        }
+    }
+
+    /** "Проверить каналы": tries every stream, hides the dead ones, remembers the result. */
+    private void checkChannels() {
+        status.setText("Проверяю каналы… это займёт до минуты");
+        rows.add(rows.size(), "Проверка…");
+        adapter.notifyDataSetChanged();
+        Iptv.load(this, true, cs -> {
+            if (isFinishing()) return;
+            status.setText("");
+            if (cs != null) {
+                Iptv.Channel playing = current >= 0 && current < channels.size() ? channels.get(current) : null;
+                setChannels(cs);
+                if (playing != null) badge.setText(playing.name);
+            }
         });
     }
 
@@ -127,6 +160,7 @@ public class ChannelsActivity extends Activity {
         rows.add("Ещё");
         rows.add(new Action("Каналы по странам  ›", this::showCountries));
         rows.add(new Action("Каналы по темам  ›", this::showTopics));
+        rows.add(new Action("🔄  Проверить каналы", this::checkChannels));
         adapter.notifyDataSetChanged();
         String last = prefs.getString("last", null);
         int start = -1;
@@ -167,6 +201,7 @@ public class ChannelsActivity extends Activity {
         rows.add("Ещё");
         rows.add(new Action("Каналы по странам  ›", this::showCountries));
         rows.add(new Action("Каналы по темам  ›", this::showTopics));
+        rows.add(new Action("🔄  Проверить каналы", this::checkChannels));
         current = playing != null ? channels.indexOf(playing) : -1;
         adapter.notifyDataSetChanged();
         list.setSelection(1);
@@ -452,7 +487,7 @@ public class ChannelsActivity extends Activity {
                 t.setPadding((int) (24 * d), (int) (14 * d), 0, (int) (4 * d));
             } else {
                 Iptv.Channel c = (Iptv.Channel) row;
-                t.setText(c.available() ? (c.state == 0 ? c.name + "  ·" : c.name) : c.name + "  · нет сигнала");
+                t.setText(c.available() ? c.name : c.name + "  · нет сигнала");
                 t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
                 t.setTextColor(!c.available() ? 0x59FFFFFF : channels.indexOf(c) == current ? 0xFF8CD3FF : 0xFFFFFFFF);
                 t.setFontVariationSettings("'wght' 400");

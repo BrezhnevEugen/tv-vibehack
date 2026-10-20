@@ -136,6 +136,15 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         List<Entry> inputs = hdmiEntries(fresh);
         inputs.add(weatherEntry());
         inputs.add(channelsEntry());
+        // Apps that belong next to the TV tile (config.xml, front_apps), e.g. Лайм HD TV.
+        for (String pkg : ctx.getResources().getStringArray(R.array.front_apps)) {
+            for (int i = 0; i < fresh.size(); i++) {
+                if (fresh.get(i).pkg.equals(pkg) && !favourites.contains(pkg)) {
+                    inputs.add(fresh.remove(i));
+                    break;
+                }
+            }
+        }
         fresh.addAll(Math.min(dockSize, fresh.size()), inputs);
         items.clear();
         items.addAll(fresh);

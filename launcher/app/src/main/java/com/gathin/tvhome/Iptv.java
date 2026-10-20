@@ -47,7 +47,48 @@ final class Iptv {
     private Iptv() {
     }
 
-    static void load(Context ctx, Consumer<List<Channel>> onResult) {
+    /** Last channel list with check results, so the screen opens instantly without network. */
+    static List<Channel> restore(Context ctx) {
+        String json = ctx.getSharedPreferences("channels", Context.MODE_PRIVATE).getString("list", null);
+        if (json == null) return null;
+        try {
+            org.json.JSONArray a = new org.json.JSONArray(json);
+            List<Channel> out = new ArrayList<>();
+            for (int i = 0; i < a.length(); i++) {
+                org.json.JSONObject o = a.getJSONObject(i);
+                Channel c = new Channel(o.getString("name"), o.getString("group"));
+                c.url = o.optString("url", null);
+                c.userAgent = o.has("ua") ? o.getString("ua") : null;
+                c.referer = o.has("ref") ? o.getString("ref") : null;
+                c.state = o.optInt("state", 0);
+                out.add(c);
+            }
+            return out.isEmpty() ? null : out;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    static void save(Context ctx, List<Channel> cs) {
+        try {
+            org.json.JSONArray a = new org.json.JSONArray();
+            for (Channel c : cs) {
+                org.json.JSONObject o = new org.json.JSONObject();
+                o.put("name", c.name);
+                o.put("group", c.group);
+                if (c.url != null) o.put("url", c.url);
+                if (c.userAgent != null) o.put("ua", c.userAgent);
+                if (c.referer != null) o.put("ref", c.referer);
+                o.put("state", c.state);
+                a.put(o);
+            }
+            ctx.getSharedPreferences("channels", Context.MODE_PRIVATE).edit().putString("list", a.toString()).apply();
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Downloads the playlists; with check, also tries every stream (slow: tens of seconds). */
+    static void load(Context ctx, boolean check, Consumer<List<Channel>> onResult) {
         final String[] playlists = ctx.getResources().getStringArray(R.array.iptv_playlists);
         final String[] russia = ctx.getResources().getStringArray(R.array.iptv_russia);
         final String[] world = ctx.getResources().getStringArray(R.array.iptv_world);
@@ -76,8 +117,14 @@ final class Iptv {
             List<Channel> out = new ArrayList<>();
             synchronized (probes) {
                 probes.clear();
+                guesses.clear();
                 pick(all, russia, "Россия", out);
                 pick(all, world, "Мир", out);
+                if (!check) {   // best guess per channel; a failed play marks it dead
+                    for (Runnable r : guesses) r.run();
+                    guesses.clear();
+                    probes.clear();
+                }
                 java.util.concurrent.ExecutorService ex = java.util.concurrent.Executors.newFixedThreadPool(8);
                 for (Runnable r : probes) ex.submit(r);
                 ex.shutdown();
@@ -87,7 +134,10 @@ final class Iptv {
                 }
                 probes.clear();
             }
-            if (!out.isEmpty()) cache = out;
+            if (!out.isEmpty()) {
+                cache = out;
+                save(ctx, out);
+            }
             final List<Channel> result = out.isEmpty() ? cache : out;
             main.post(() -> onResult.accept(result));
         }, "iptv").start();
@@ -116,6 +166,13 @@ final class Iptv {
             cands.sort((a, b) -> Integer.compare(score(b), score(a)));
             Channel ch = new Channel(kv[1], group);
             out.add(ch);
+            guesses.add(() -> {
+                Entry b = cands.get(0);
+                ch.url = b.url;
+                ch.userAgent = b.ua;
+                ch.referer = b.ref;
+                ch.state = 0;
+            });
             probes.add(() -> {
                 probe(ch, cands);
             });
@@ -123,6 +180,7 @@ final class Iptv {
     }
 
     private static final List<Runnable> probes = new ArrayList<>();
+    private static final List<Runnable> guesses = new ArrayList<>();
 
     private static void probe(Channel ch, List<Entry> cands) {
         for (Entry e : cands) {
