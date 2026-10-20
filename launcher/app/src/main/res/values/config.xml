@@ -41,32 +41,26 @@
     <string name="stock_launcher" translatable="false">com.google.android.apps.tv.launcherx</string>
 
     <!-- Apps Settings → «Отключить лишние приложения» turns off (and «Вернуть» turns back on), from the TV itself.
-         Same list as examples/tcl-g10-google-tv/debloat.txt. Wi-Fi owners and system parts are skipped (HomeMode). -->
+         Same as config/debloat.txt for this TV: phone-app/remote services (partnercustomizer, interactive, usercenter,
+         tv.remote.service), Media Center, Game Bar and Miracast are kept on purpose. Wi-Fi owners and system parts are skipped (HomeMode). -->
     <string-array name="debloat_apps">
         <item>com.tcl.tv.plus</item>
         <item>com.tcl.channelplus</item>
         <item>com.tcl.waterfall.overseas</item>
         <item>com.tcl.tv.tclhome_passive</item>
-        <item>com.tcl.partnercustomizer</item>
-        <item>com.tcl.interactive</item>
         <item>com.tcl.smartlink.core</item>
         <item>com.tcl.messagebox</item>
-        <item>com.tcl.usercenter</item>
         <item>com.tcl.exhibit</item>
         <item>com.tcl.esticker</item>
         <item>com.tcl.hotelmenu</item>
         <item>com.tcl.ocean.instructions</item>
         <item>com.tcl.repairguide</item>
-        <item>com.tcl.gamebar</item>
-        <item>com.tcl.ui_mediaCenter</item>
         <item>com.tcl.UpdatePeripheral</item>
         <item>com.tcl.magiconnectfree</item>
-        <item>com.tcl.miracast</item>
         <item>android.autoinstalls.config.google.gtvpai</item>
         <item>com.google.android.feedback</item>
         <item>com.google.android.marvin.talkback</item>
         <item>com.google.android.apps.tv.dreamx</item>
-        <item>com.google.android.tv.remote.service</item>
         <item>com.google.android.play.games</item>
         <item>com.google.android.youtube.tvmusic</item>
     </string-array>

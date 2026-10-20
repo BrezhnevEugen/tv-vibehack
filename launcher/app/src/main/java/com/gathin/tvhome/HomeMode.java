@@ -32,6 +32,7 @@ final class HomeMode {
 
     private static final String HOME = "com.gathin.tvhome/.MainActivity";
     private static final String DREAM = "com.gathin.tvhome/.ClockDream";
+    private static final String SETUP = "com.google.android.tungsten.setupwraith";
 
     /**
      * Never turned off, not even if someone adds them to debloat_apps: picture, sound, inputs, the remote, setup,
@@ -73,6 +74,10 @@ final class HomeMode {
         if (!stock.isEmpty() && packages(adb, "").contains(stock) && !wifiOwners(adb).contains(stock)) {
             adb.shell("pm disable-user --user 0 " + stock);
         }
+        // Google's setup wizard claims HOME with a higher priority than ours once the stock home is off,
+        // and its RecoveryActivity then loops. Keep it off while ours is the home (Original turns it back on).
+        adb.shell("pm disable-user --user 0 " + SETUP);
+        adb.shell("cmd package set-home-activity --user 0 " + HOME);
         String dream = adb.shell("settings get secure screensaver_components").trim();
         if (dream.contains("/") && !dream.startsWith("com.gathin.tvhome/")) Prefs.setOriginalDream(app, dream);
         adb.shell("settings put secure screensaver_components " + DREAM);
@@ -85,6 +90,7 @@ final class HomeMode {
         Prefs.setMode(app, Prefs.MODE_ORIGINAL);
         String stock = app.getString(R.string.stock_launcher).trim();
         if (stock.isEmpty()) throw new IOException("в config.xml не указан stock_launcher");
+        adb.shell("pm enable " + SETUP);
         adb.shell("pm enable " + stock);
         String home = adb.shell("cmd package resolve-activity --brief -a android.intent.action.MAIN"
                 + " -c android.intent.category.HOME " + stock + " | tail -n 1").trim();
