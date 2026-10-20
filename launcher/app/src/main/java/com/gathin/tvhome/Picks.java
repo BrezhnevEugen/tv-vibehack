@@ -101,7 +101,7 @@ final class Picks {
                 }
                 Pick p = current(app);
                 if (p != null && (artFor != p.id || art == null)) {
-                    art = Net.image(IMAGES + "w1280" + p.backdrop, 1280);
+                    art = Net.image(IMAGES + "w780" + p.backdrop, 1280);
                     artFor = p.id;
                     changed = true;
                 }
