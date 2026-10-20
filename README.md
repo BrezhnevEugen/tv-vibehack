@@ -1,5 +1,33 @@
 # tv-vibehack
 
+## Эта сборка: TCL G10 (65", Google TV, Android 12)
+
+Ветка `tcl-g10-home` — лаунчер, доработанный под конкретный ТВ: кадры из трендов TMDB за приложениями, плитки
+погоды, ТВ-каналов и HDMI-приставки, заставка и экран погоды в стиле iPhone, переназначение кнопок пульта
+(YouTube, Netflix → KinoWatch), настройки прямо на ТВ.
+
+| Главный экран | Сетка плиток |
+|---|---|
+| ![Главный экран](docs/tcl-g10/home-dock.png) | ![Сетка](docs/tcl-g10/home-grid.png) |
+
+| Заставка с погодой | Погода: подробно (10 дней, осадки) |
+|---|---|
+| ![Заставка](docs/tcl-g10/screensaver-weather.png) | ![Погода подробно](docs/tcl-g10/weather-detailed.png) |
+
+| Погода | Карта осадков |
+|---|---|
+| ![Погода](docs/tcl-g10/weather-screen.png) | ![Карта осадков](docs/tcl-g10/weather-map.png) |
+
+| ТВ-каналы | Каналы по темам | Каналы по странам |
+|---|---|---|
+| ![Каналы](docs/tcl-g10/channels-list.png) | ![Темы](docs/tcl-g10/channels-topics.png) | ![Страны](docs/tcl-g10/channels-countries.png) |
+
+| Настройки Home на ТВ |
+|---|
+| ![Настройки](docs/tcl-g10/settings.png) |
+
+---
+
 **Your TV, minus the ads.**
 
 Strip the bloatware from any Android TV or Google TV over Wi-Fi, and replace the ad-filled home
