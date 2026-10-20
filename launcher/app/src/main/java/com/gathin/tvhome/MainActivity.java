@@ -2,6 +2,7 @@ package com.gathin.tvhome;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -234,15 +235,31 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      */
     private void ensureKeyRemap() {
         try {
-            String me = getPackageName() + "/.KeyRemapService";
             android.content.ContentResolver cr = getContentResolver();
-            String on = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            ComponentName me = new ComponentName(this, KeyRemapService.class);
+            String list = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
             boolean enabled = Settings.Secure.getInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1;
-            if (enabled && on != null && on.contains(me)) return;
-            if (on != null && on.contains(me)) {   // listed but off: re-list so it rebinds
-                Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, "");
+            // Keep every other accessibility service the user has on; only add or re-add ours.
+            StringBuilder others = new StringBuilder();
+            boolean listed = false;
+            if (list != null) {
+                for (String part : list.split(":")) {
+                    if (part.isEmpty()) continue;
+                    ComponentName cn = ComponentName.unflattenFromString(part);
+                    if (me.equals(cn)) {
+                        listed = true;
+                        continue;
+                    }
+                    if (others.length() > 0) others.append(':');
+                    others.append(part);
+                }
             }
-            Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, me);
+            if (enabled && listed) return;
+            if (listed) {   // listed but off: write the list without ours, then with it, so it rebinds
+                Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, others.toString());
+            }
+            String withMe = others.length() > 0 ? others + ":" + me.flattenToString() : me.flattenToString();
+            Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, withMe);
             Settings.Secure.putInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 1);
         } catch (SecurityException ignored) {   // permission not granted: leave it to install.sh
         }
