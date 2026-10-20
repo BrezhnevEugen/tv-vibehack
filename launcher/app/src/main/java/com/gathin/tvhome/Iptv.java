@@ -19,6 +19,8 @@ final class Iptv {
 
     static final class Channel {
         final String name, group;
+        /** Theme from the playlist (iptv-org group-title, first one), e.g. "News". */
+        String category = "";
         /** Stream to play: the first candidate that answered (or, before probing, the best guess). */
         String url, userAgent, referer;
         /** 0 not checked yet, 1 answers, -1 no candidate answered. */
@@ -36,7 +38,7 @@ final class Iptv {
 
     /** One playlist entry before filtering. */
     private static final class Entry {
-        String id, variant, url, ua, ref, name;
+        String id, variant, url, ua, ref, name, cat;
         boolean geo, hd;
     }
 
@@ -122,11 +124,55 @@ final class Iptv {
 
     private static java.util.concurrent.ExecutorService countryProbe;
 
+    /** iptv-org theme names in Russian. */
+    static String themeRu(String c) {
+        switch (c) {
+            case "News": return "Новости";
+            case "Music": return "Музыка";
+            case "Movies": return "Кино";
+            case "Series": return "Сериалы";
+            case "Sports": return "Спорт";
+            case "Kids": return "Детские";
+            case "Animation": return "Мультфильмы";
+            case "Documentary": return "Документальные";
+            case "Entertainment": return "Развлечения";
+            case "General": return "Общие";
+            case "Lifestyle": return "Стиль и мода";
+            case "Religious": return "Религия";
+            case "Business": return "Бизнес";
+            case "Culture": return "Культура";
+            case "Education": return "Образование";
+            case "Science": return "Наука";
+            case "Travel": return "Путешествия";
+            case "Cooking": return "Кулинария";
+            case "Comedy": return "Юмор";
+            case "Family": return "Семейные";
+            case "Auto": return "Авто";
+            case "Classic": return "Классика";
+            case "Relax": return "Релакс";
+            case "Outdoor": return "Природа";
+            case "Shop": return "Магазины";
+            case "Legislative": return "Парламент";
+            case "Weather": return "Погода";
+            case "": case "Undefined": return "Без темы";
+            default: return c;
+        }
+    }
+
     /**
      * All channels of one country (iptv-org countries/<code>.m3u), sorted by name. The list comes back at once
      * with best-guess streams; each channel is then checked in the background and onUpdate fires as results land.
      */
     static void loadCountry(String code, String country, Consumer<List<Channel>> onList, Runnable onUpdate) {
+        loadPlaylist("https://iptv-org.github.io/iptv/countries/" + code + ".m3u", country, onList, onUpdate);
+    }
+
+    /** Same for a theme playlist (iptv-org categories/<name>.m3u). */
+    static void loadTopic(String category, String title, Consumer<List<Channel>> onList, Runnable onUpdate) {
+        loadPlaylist("https://iptv-org.github.io/iptv/categories/" + category + ".m3u", title, onList, onUpdate);
+    }
+
+    private static void loadPlaylist(String url, String country, Consumer<List<Channel>> onList, Runnable onUpdate) {
         final Handler main = new Handler(Looper.getMainLooper());
         if (countryProbe != null) countryProbe.shutdownNow();
         final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(8);
@@ -134,7 +180,7 @@ final class Iptv {
         new Thread(() -> {
             List<Entry> all;
             try {
-                all = parse("https://iptv-org.github.io/iptv/countries/" + code + ".m3u");
+                all = parse(url);
             } catch (Exception e) {
                 main.post(() -> onList.accept(null));
                 return;
@@ -152,6 +198,7 @@ final class Iptv {
                 ch.url = best.url;
                 ch.userAgent = best.ua;
                 ch.referer = best.ref;
+                ch.category = best.cat == null ? "" : best.cat;
                 out.add(ch);
                 pool.submit(() -> {
                     probe(ch, cands);
@@ -210,6 +257,8 @@ final class Iptv {
                     int dot = base.lastIndexOf('.');
                     cur.id = dot > 0 ? base.substring(0, dot) : base;
                     cur.ua = attrs.get("http-user-agent");
+                    String g = attrs.getOrDefault("group-title", "");
+                    cur.cat = g.contains(";") ? g.substring(0, g.indexOf(';')) : g;
                     cur.ref = attrs.get("http-referrer");
                     cur.geo = line.contains("[Geo-blocked]");
                     cur.hd = cur.variant.toUpperCase().contains("HD") || line.contains("(1080p)");

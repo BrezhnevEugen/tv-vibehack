@@ -95,6 +95,29 @@
         <item>br|🇧🇷 Бразилия</item>
         <item>ca|🇨🇦 Канада</item>
     </string-array>
+    <!-- "Каналы по темам": iptv-org category|name. -->
+    <string-array name="iptv_topics">
+        <item>news|📰 Новости</item>
+        <item>lifestyle|👗 Стиль и мода</item>
+        <item>music|🎵 Музыка</item>
+        <item>movies|🎬 Кино</item>
+        <item>series|📺 Сериалы</item>
+        <item>documentary|🌍 Документальные</item>
+        <item>science|🔬 Наука</item>
+        <item>travel|✈️ Путешествия</item>
+        <item>cooking|🍳 Кулинария</item>
+        <item>outdoor|🏕 Природа</item>
+        <item>sports|⚽ Спорт</item>
+        <item>auto|🚗 Авто</item>
+        <item>kids|🧸 Детские</item>
+        <item>animation|🐭 Мультфильмы</item>
+        <item>comedy|😄 Юмор</item>
+        <item>culture|🎭 Культура</item>
+        <item>classic|🎞 Классика</item>
+        <item>relax|🌊 Релакс</item>
+        <item>business|💼 Бизнес</item>
+        <item>weather|⛅ Погода</item>
+    </string-array>
     <string-array name="iptv_world">
         <item>EuronewsRussian|Euronews (рус)</item>
         <item>CGTNRussian|CGTN (рус)</item>

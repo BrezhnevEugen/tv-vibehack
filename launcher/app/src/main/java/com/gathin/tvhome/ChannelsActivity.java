@@ -122,6 +122,7 @@ public class ChannelsActivity extends Activity {
         }
         rows.add("Ещё");
         rows.add(new Action("Каналы по странам  ›", this::showCountries));
+        rows.add(new Action("Каналы по темам  ›", this::showTopics));
         adapter.notifyDataSetChanged();
         String last = prefs.getString("last", null);
         int start = -1;
@@ -159,6 +160,7 @@ public class ChannelsActivity extends Activity {
         }
         rows.add("Ещё");
         rows.add(new Action("Каналы по странам  ›", this::showCountries));
+        rows.add(new Action("Каналы по темам  ›", this::showTopics));
         current = playing != null ? channels.indexOf(playing) : -1;
         adapter.notifyDataSetChanged();
         list.setSelection(1);
@@ -178,15 +180,36 @@ public class ChannelsActivity extends Activity {
         list.requestFocus();
     }
 
-    private void showCountry(String code, String name) {
+    private void showTopics() {
+        countryName = null;
         rows.clear();
-        rows.add(new Action("‹  Страны", this::showCountries));
+        rows.add(new Action("‹  Избранные каналы", this::showFavourites));
+        rows.add("Темы");
+        for (String line : getResources().getStringArray(R.array.iptv_topics)) {
+            String[] kv = line.split("\\|", 2);
+            if (kv.length == 2) rows.add(new Action(kv[1], () -> showCountry(kv[0], kv[1], true)));
+        }
+        adapter.notifyDataSetChanged();
+        list.setSelection(0);
+        list.requestFocus();
+    }
+
+    private void showCountry(String code, String name) {
+        showCountry(code, name, false);
+    }
+
+    /** A country's (or, with topic, a theme's) channels. */
+    private void showCountry(String code, String name, boolean topic) {
+        backAction = topic ? new Action("‹  Темы", this::showTopics) : new Action("‹  Страны", this::showCountries);
+        filter = null;
+        rows.clear();
+        rows.add(backAction);
         rows.add(name + " · загрузка…");
         adapter.notifyDataSetChanged();
-        Iptv.loadCountry(code, name, cs -> {
+        java.util.function.Consumer<List<Iptv.Channel>> onList = cs -> {
             if (isFinishing()) return;
             rows.clear();
-            rows.add(new Action("‹  Страны", this::showCountries));
+            rows.add(backAction);
             if (cs == null || cs.isEmpty()) {
                 rows.add(name + " · нет каналов");
                 adapter.notifyDataSetChanged();
@@ -200,18 +223,38 @@ public class ChannelsActivity extends Activity {
             refreshCountry();
             list.setSelection(2);
             if (playing != null) badge.setText(playing.name);
-        }, () -> {
+        };
+        Runnable onUpdate = () -> {
             if (countryName != null && countryName.equals(name)) refreshCountry();
-        });
+        };
+        if (topic) Iptv.loadTopic(code, name, onList, onUpdate);
+        else Iptv.loadCountry(code, name, onList, onUpdate);
     }
 
     private String countryName;
+    private Action backAction;
+    /** Theme filter in a country list: null = all themes, grouped under headers. */
+    private String filter;
+
+    private void nextFilter() {
+        java.util.TreeSet<String> cats = new java.util.TreeSet<>();
+        for (Iptv.Channel c : channels) if (c.state != -1) cats.add(c.category);
+        List<String> order = new ArrayList<>(cats);
+        if (order.isEmpty()) return;
+        if (filter == null) filter = order.get(0);
+        else {
+            int i = order.indexOf(filter);
+            filter = i < 0 || i + 1 >= order.size() ? null : order.get(i + 1);
+        }
+        refreshCountry();
+        list.setSelection(1);
+    }
 
     /** Country list without the channels that turned out dead, so only watchable ones remain. */
     private void refreshCountry() {
         Object sel = list.getSelectedItem();
         rows.clear();
-        rows.add(new Action("‹  Страны", this::showCountries));
+        rows.add(backAction);
         int checked = 0, live = 0;
         for (Iptv.Channel c : channels) {
             if (c.state != 0) checked++;
@@ -220,7 +263,30 @@ public class ChannelsActivity extends Activity {
         rows.add(countryName + (checked < channels.size()
                 ? " · проверено " + checked + " из " + channels.size()
                 : " · работают " + live));
-        for (Iptv.Channel c : channels) if (c.state != -1) rows.add(c);
+        rows.add(new Action("Тема: " + (filter == null ? "все" : Iptv.themeRu(filter)) + "   (OK — следующая)", this::nextFilter));
+        List<Iptv.Channel> shown = new ArrayList<>();
+        for (Iptv.Channel c : channels) {
+            if (c.state == -1) continue;
+            if (filter != null && !filter.equals(c.category)) continue;
+            shown.add(c);
+        }
+        if (filter == null) {   // all themes: grouped by theme, then by name
+            shown.sort((a, b) -> {
+                int t = Iptv.themeRu(a.category).compareTo(Iptv.themeRu(b.category));
+                return t != 0 ? t : a.name.compareToIgnoreCase(b.name);
+            });
+            String head = null;
+            for (Iptv.Channel c : shown) {
+                String h = Iptv.themeRu(c.category);
+                if (!h.equals(head)) {
+                    rows.add(h);
+                    head = h;
+                }
+                rows.add(c);
+            }
+        } else {
+            rows.addAll(shown);
+        }
         adapter.notifyDataSetChanged();
         int at = sel != null ? rows.indexOf(sel) : -1;
         if (at >= 0) list.setSelection(at);
