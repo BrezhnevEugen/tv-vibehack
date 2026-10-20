@@ -56,6 +56,8 @@ public class ChannelsActivity extends Activity {
     private View panel;
     private TextView badge, status;
     private int current = -1;
+    /** The list stays open on entry (Russian channels) until a channel is picked. */
+    private boolean pinned = true;
     private SharedPreferences prefs;
     private final Runnable hideBadge = () -> badge.setVisibility(View.GONE);
     private final Runnable hideList = this::hideList;
@@ -95,6 +97,7 @@ public class ChannelsActivity extends Activity {
             if (row instanceof Action) {
                 ((Action) row).run.run();
             } else if (row instanceof Iptv.Channel && ((Iptv.Channel) row).available()) {
+                pinned = false;
                 play(channels.indexOf(row));
                 hideList();
             }
@@ -137,6 +140,7 @@ public class ChannelsActivity extends Activity {
         }
         play(start);
         showList();
+        list.setSelection(0);   // top of the list: the Russian federal channels
     }
 
     private void play(int index) {
@@ -331,7 +335,7 @@ public class ChannelsActivity extends Activity {
     }
 
     private void hideList() {
-        if (current >= 0) panel.setVisibility(View.GONE);
+        if (current >= 0 && !pinned) panel.setVisibility(View.GONE);
     }
 
     @Override
@@ -363,7 +367,7 @@ public class ChannelsActivity extends Activity {
                     showList();
                     return true;
             }
-        } else if (keyCode == KeyEvent.KEYCODE_BACK && current >= 0) {
+        } else if (keyCode == KeyEvent.KEYCODE_BACK && current >= 0 && !pinned) {
             hideList();
             return true;
         }
