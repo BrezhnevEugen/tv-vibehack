@@ -206,6 +206,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // Read these before reload(): rebinding can move focus to the first tile and overwrite them.
         final String returnKey = lastFocusedKey;
         final int returnSlot = lastFocused;
+        ensureKeyRemap();
         adapter.reload();
         grid.scheduleLayoutAnimation();
         // Keep the Weather tile fresh: at most one request per 30 minutes while Home is shown.
@@ -225,6 +226,26 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int pos = adapter.positionOf(returnKey);
             focusTile(pos >= 0 ? pos : returnSlot);
         });
+    }
+
+    /**
+     * The TV sometimes switches accessibility off (after updates or a service restart), and with it the
+     * YouTube/Netflix button remap. Turn it back on whenever Home is shown; needs WRITE_SECURE_SETTINGS.
+     */
+    private void ensureKeyRemap() {
+        try {
+            String me = getPackageName() + "/.KeyRemapService";
+            android.content.ContentResolver cr = getContentResolver();
+            String on = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            boolean enabled = Settings.Secure.getInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1;
+            if (enabled && on != null && on.contains(me)) return;
+            if (on != null && on.contains(me)) {   // listed but off: re-list so it rebinds
+                Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, "");
+            }
+            Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, me);
+            Settings.Secure.putInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 1);
+        } catch (SecurityException ignored) {   // permission not granted: leave it to install.sh
+        }
     }
 
     @Override
