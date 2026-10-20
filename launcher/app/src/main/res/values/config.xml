@@ -16,6 +16,7 @@
     <!-- Apps placed right after the HDMI / Weather / TV channels tiles. -->
     <string-array name="front_apps">
         <item>com.infolink.limeiptv</item>
+        <item>com.biglybt.android.client</item>
     </string-array>
 
     <!-- Apps never shown as tiles (e.g. the Live TV app, which the Inputs menu already covers). -->
