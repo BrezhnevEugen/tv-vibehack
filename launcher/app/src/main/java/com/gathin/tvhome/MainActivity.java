@@ -76,6 +76,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     // Static so they survive the activity being destroyed while another app is open (low-memory TVs,
     // or Developer options → "Don't keep activities"); they only reset when the process dies.
     private static int lastFocused = 0;
+    private static long lastWeatherFetch;
     /** App of the last focused tile, so focus follows it when the app list changes. */
     private static String lastFocusedKey;
     private float density;
@@ -207,6 +208,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         final int returnSlot = lastFocused;
         adapter.reload();
         grid.scheduleLayoutAnimation();
+        // Keep the Weather tile fresh: at most one request per 30 minutes while Home is shown.
+        if (System.currentTimeMillis() - lastWeatherFetch > 30 * 60_000L) {
+            lastWeatherFetch = System.currentTimeMillis();
+            Weather.fetch(this, d -> {
+                if (d != null && !isFinishing()) adapter.reload();
+            });
+        }
         updateGreeting();
         updateWifiLabel();
         handler.postDelayed(minuteTick, MINUTE_MS);

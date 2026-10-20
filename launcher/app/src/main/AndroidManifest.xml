@@ -41,6 +41,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".WeatherActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TvHome"
+            android:screenOrientation="landscape" />
+
         <!-- Remaps the remote's app buttons (config.xml, key_remaps). -->
         <service
             android:name=".KeyRemapService"

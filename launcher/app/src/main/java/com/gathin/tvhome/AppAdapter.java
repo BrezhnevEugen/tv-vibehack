@@ -134,10 +134,41 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         });
         // HDMI tiles go right after the dock, like the input cards on the stock Google TV home.
         List<Entry> inputs = hdmiEntries(fresh);
+        inputs.add(weatherEntry());
         fresh.addAll(Math.min(dockSize, fresh.size()), inputs);
         items.clear();
         items.addAll(fresh);
         notifyDataSetChanged();
+    }
+
+    /** "Погода" tile: a sky-coloured card with the current temperature, opening the full forecast. */
+    private Entry weatherEntry() {
+        Weather.Data d = Weather.last;
+        int w = 360, h = 202;
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        int[] sky = d != null ? Weather.sky(d.code, d.day) : new int[]{0xFF2E6FD8, 0xFF6FA8F0};
+        android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        p.setShader(new android.graphics.LinearGradient(0, 0, 0, h, sky[0], sky[1], android.graphics.Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
+        p.setColor(0xFFFFFFFF);
+        p.setTypeface(ctx.getResources().getFont(R.font.outfit));
+        p.setTextSize(30);
+        c.drawText(ctx.getString(R.string.weather_city), 24, 46, p);
+        p.setTextSize(84);
+        c.drawText(d != null ? Weather.deg(d.temp) : "—", 22, 140, p);
+        p.setTextSize(24);
+        p.setColor(0xD9FFFFFF);
+        c.drawText(d != null ? Weather.describe(d.code) : "Погода", 24, 180, p);
+        if (d != null) {
+            p.setTextSize(64);
+            p.setTextAlign(android.graphics.Paint.Align.RIGHT);
+            c.drawText(Weather.icon(d.code, d.day), w - 22, 130, p);
+        }
+        Drawable banner = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bmp);
+        Intent i = new Intent(ctx, WeatherActivity.class);
+        return new Entry("Погода", "weather", banner, null, i);
     }
 
     private List<Entry> hdmiEntries(List<Entry> apps) {

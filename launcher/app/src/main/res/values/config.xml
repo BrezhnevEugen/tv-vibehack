@@ -19,6 +19,7 @@
         <item>com.tcl.t_solo</item>
         <item>com.esaba.downloader</item>
         <item>com.tcl.ui_mediaCenter</item>
+        <item>com.tcl.partnercustomizer</item>
     </string-array>
 
     <!-- The TV's Live TV / tuner app, offered at the end of the Inputs menu. Leave empty to omit. -->
