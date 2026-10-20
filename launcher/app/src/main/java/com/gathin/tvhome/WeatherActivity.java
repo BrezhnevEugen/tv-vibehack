@@ -13,8 +13,8 @@ import android.widget.TextView;
 
 /**
  * Full-screen weather from the Weather tile: the screensaver's layout, refreshed on open.
- * OK cycles: normal → detailed (10 days, precipitation) → precipitation map (config.xml, weather_map_url,
- * opened in a WebView like a browser would). Back closes the map, then the screen.
+ * OK cycles: normal → detailed (10 days, precipitation) → precipitation map (assets/map, Leaflet over
+ * Open-Meteo grid data). Back closes the map, then the screen.
  */
 public class WeatherActivity extends Activity {
 
@@ -68,10 +68,19 @@ public class WeatherActivity extends Activity {
         ws.setUseWideViewPort(true);
         ws.setLoadWithOverviewMode(true);
         map.setWebViewClient(new WebViewClient());   // stay inside the view
+        map.setWebChromeClient(new android.webkit.WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(android.webkit.ConsoleMessage m) {
+                android.util.Log.i("TvHomeMap", m.messageLevel() + " " + m.message());
+                return true;
+            }
+        });
         map.setBackgroundColor(0xFF000000);
         ((FrameLayout) findViewById(R.id.dreamRoot)).addView(map,
                 new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        map.loadUrl(getString(R.string.weather_map_url));
+        map.loadUrl("file:///android_asset/map/index.html?lat=" + getString(R.string.weather_lat)
+                + "&lon=" + getString(R.string.weather_lon)
+                + "&city=" + android.net.Uri.encode(getString(R.string.weather_city)));
         map.requestFocus();
     }
 

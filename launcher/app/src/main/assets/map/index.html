@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="leaflet.css">
+<style>
+  html, body, #map { margin: 0; height: 100%; background: #0b0f17; }
+  body { font-family: sans-serif; color: #fff; overflow: hidden; }
+  .leaflet-control-attribution { background: rgba(0,0,0,.45) !important; color: #aaa !important; font-size: 10px; }
+  .leaflet-control-attribution a { color: #ccc !important; }
+  .rain { image-rendering: auto; opacity: .62; transition: opacity .25s; }
+  /* OSM street map, darkened like the iPhone/Yandex night map. */
+  .base { filter: invert(1) hue-rotate(200deg) brightness(.85) contrast(.9) saturate(.5); }
+  #title { position: absolute; top: 22px; left: 28px; z-index: 1000; font-size: 26px; font-weight: 300;
+           text-shadow: 0 1px 6px rgba(0,0,0,.8); }
+  #title small { display: block; font-size: 14px; color: #bcd; margin-top: 4px; }
+  #bar { position: absolute; left: 28px; right: 28px; bottom: 22px; z-index: 1000; display: flex; gap: 4px;
+         background: rgba(20,24,34,.78); border-radius: 16px; padding: 10px 12px; align-items: flex-end; }
+  .f { flex: 1; text-align: center; font-size: 12px; color: #9aa; }
+  .f i { display: block; height: 4px; border-radius: 2px; background: #2a3242; margin-top: 6px; }
+  .f.now { color: #fff; font-weight: 600; }
+  .f.on i { background: #5ac8fa; }
+  .f.on { color: #fff; }
+  #legend { position: absolute; top: 22px; right: 28px; z-index: 1000; background: rgba(20,24,34,.78);
+            border-radius: 12px; padding: 8px 12px; font-size: 12px; color: #ccd; }
+  #legend span { display: inline-block; width: 18px; height: 10px; border-radius: 3px; margin: 0 4px 0 10px; vertical-align: middle; }
+  #msg { position: absolute; top: 50%; left: 0; right: 0; text-align: center; z-index: 1000; font-size: 20px; color: #bcd; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="title">Осадки · <span id="city"></span><small id="sub">прогноз модели, шаг 15 минут · ← → время · OK пауза</small></div>
+<div id="legend">слабые<span style="background:#7fc7ff"></span>умеренные<span style="background:#2f8cff"></span>сильные<span style="background:#6a4cff"></span></div>
+<div id="bar"></div>
+<div id="msg">Загрузка…</div>
+<script src="leaflet.js"></script>
+<script>
+// Precipitation "radar" built from Open-Meteo model data on a grid around the city (RainViewer has no
+// Russian radars and Yandex's map layer needs WebGL features this TV lacks). Smooth blobs come from
+// stretching a tiny image with bilinear filtering.
+var q = new URLSearchParams(location.search);
+var LAT = +q.get('lat') || 45.0355, LON = +q.get('lon') || 38.9753, CITY = q.get('city') || 'Краснодар';
+var N = 13, DLAT = 0.05, DLON = 0.07, PAST = 8, NEXT = 8;
+document.getElementById('city').textContent = CITY;
+
+var map = L.map('map', { zoomControl: false, attributionControl: true, keyboard: false })
+  .setView([LAT, LON], 12);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18, className: 'base',
+  attribution: '© участники OpenStreetMap · данные: Open-Meteo'
+}).addTo(map);
+L.circleMarker([LAT, LON], { radius: 6, color: '#fff', weight: 2, fillColor: '#ff453a', fillOpacity: 1 }).addTo(map);
+
+var lats = [], lons = [];
+for (var i = 0; i < N; i++) for (var j = 0; j < N; j++) {
+  lats.push((LAT + (N / 2 - 0.5 - i) * DLAT).toFixed(4));   // row 0 = north
+  lons.push((LON + (j - (N / 2 - 0.5)) * DLON).toFixed(4));
+}
+var bounds = [[LAT - N / 2 * DLAT, LON - N / 2 * DLON], [LAT + N / 2 * DLAT, LON + N / 2 * DLON]];
+
+function color(mm) {   // mm per 15 minutes
+  if (mm < 0.03) return [0, 0, 0, 0];
+  if (mm < 0.2) return [127, 199, 255, 140];
+  if (mm < 0.6) return [47, 140, 255, 190];
+  if (mm < 1.5) return [40, 90, 255, 220];
+  return [106, 76, 255, 235];
+}
+
+var frames = [], times = [], idx = 0, now = 0, playing = true, overlay = null;
+
+fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lats.join(',') + '&longitude=' + lons.join(',')
+      + '&minutely_15=precipitation&past_minutely_15=' + PAST + '&forecast_minutely_15=' + NEXT + '&timezone=auto')
+  .then(function (r) { return r.json(); })
+  .then(function (all) {
+    times = all[0].minutely_15.time;
+    for (var t = 0; t < times.length; t++) {
+      var c = document.createElement('canvas'); c.width = N; c.height = N;
+      var ctx = c.getContext('2d'), img = ctx.createImageData(N, N);
+      for (var k = 0; k < N * N; k++) {
+        var col = color(all[k].minutely_15.precipitation[t] || 0);
+        img.data.set(col, k * 4);
+      }
+      ctx.putImageData(img, 0, 0);
+      frames.push(c.toDataURL());
+    }
+    var nowStr = new Date(Date.now() + all[0].utc_offset_seconds * 1000).toISOString().slice(0, 16);
+    now = 0;
+    for (var t2 = 0; t2 < times.length; t2++) if (times[t2] <= nowStr) now = t2;
+    idx = now;
+    buildBar();
+    show();
+    document.getElementById('msg').style.display = 'none';
+    setInterval(function () { if (playing) { idx = (idx + 1) % frames.length; show(); } }, 900);
+  })
+  .catch(function () { document.getElementById('msg').textContent = 'Нет данных о погоде'; });
+
+function buildBar() {
+  var bar = document.getElementById('bar');
+  bar.innerHTML = '';
+  times.forEach(function (t, k) {
+    var d = document.createElement('div');
+    d.className = 'f' + (k === now ? ' now' : '');
+    d.innerHTML = (k === now ? 'Сейчас' : (k % 2 === 0 ? t.slice(11, 16) : '&nbsp;')) + '<i></i>';
+    bar.appendChild(d);
+  });
+}
+
+function show() {
+  if (overlay) map.removeLayer(overlay);
+  overlay = L.imageOverlay(frames[idx], bounds, { className: 'rain', interactive: false }).addTo(map);
+  var cells = document.querySelectorAll('.f');
+  cells.forEach(function (c, k) { c.classList.toggle('on', k === idx); });
+}
+
+document.addEventListener('keydown', function (e) {
+  if (!frames.length) return;
+  if (e.key === 'ArrowRight') { playing = false; idx = Math.min(frames.length - 1, idx + 1); show(); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft') { playing = false; idx = Math.max(0, idx - 1); show(); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { map.zoomIn(); e.preventDefault(); }
+  else if (e.key === 'ArrowDown') { map.zoomOut(); e.preventDefault(); }
+  else if (e.key === 'Enter') { playing = !playing; e.preventDefault(); }
+});
+</script>
+</body>
+</html>
